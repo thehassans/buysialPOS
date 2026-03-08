@@ -1,0 +1,61 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Order {
+  id            String   @id
+  tenantId      String
+  tableNumber   Int?
+  waiterId      String?
+  cashierId     String?
+  status        String   @default("pending")
+  subtotal      Float
+  vatRate       Float
+  vatAmount     Float
+  total         Float
+  paymentMethod String?
+  isPaid        Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  notes         String?
+  invoiceNumber String?
+  isQrOrder     Boolean  @default(false)
+  customerName  String?
+  customerPhone String?
+  orderType     String?
+  itemsJson     String   @default("[]")
+}
+
+model MenuItem {
+  id              String  @id
+  tenantId        String
+  categoryId      String
+  name            String
+  nameAr          String?
+  description     String?
+  descriptionAr   String?
+  price           Float
+  image           String?
+  isAvailable     Boolean @default(true)
+  preparationTime Int?
+  calories        Int?
+  isPopular       Boolean @default(false)
+  isNew           Boolean @default(false)
+}
+
+model User {
+  id         String   @id
+  tenantId   String
+  name       String
+  email      String
+  role       String
+  language   String   @default("en")
+  isActive   Boolean  @default(true)
+  hourlyRate Float?
+  createdAt  DateTime @default(now())
+}

@@ -31,6 +31,7 @@ interface AppState {
   addMenuItem: (item: MenuItem) => void
   updateMenuItem: (id: string, updates: Partial<MenuItem>) => void
   deleteMenuItem: (id: string) => void
+  initFromDB: () => Promise<void>
 }
 
 export const useAppStore = create<AppState>()(
@@ -64,31 +65,86 @@ export const useAppStore = create<AppState>()(
 
       logout: () => set({ currentUser: null, currentTenant: null }),
 
-      addOrder: (order) => set((state) => ({ orders: [order, ...state.orders] })),
+      addOrder: (order) => {
+        set((state) => ({ orders: [order, ...state.orders] }))
+        fetch('/api/orders', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(order) })
+          .catch(e => console.error('DB sync addOrder:', e))
+      },
 
-      updateOrder: (id, updates) => set((state) => ({
-        orders: state.orders.map(o => o.id === id ? { ...o, ...updates, updatedAt: new Date() } : o)
-      })),
+      updateOrder: (id, updates) => {
+        set((state) => ({ orders: state.orders.map(o => o.id === id ? { ...o, ...updates, updatedAt: new Date() } : o) }))
+        fetch(`/api/orders/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(updates) })
+          .catch(e => console.error('DB sync updateOrder:', e))
+      },
 
-      updateOrderItemStatus: (orderId, itemId, status) => set((state) => ({
-        orders: state.orders.map(o =>
-          o.id === orderId
-            ? { ...o, items: o.items.map(i => i.id === itemId ? { ...i, status } : i), updatedAt: new Date() }
-            : o
-        )
-      })),
+      updateOrderItemStatus: (orderId, itemId, status) => {
+        const currentItems = get().orders.find(o => o.id === orderId)?.items
+        const updatedItems = currentItems?.map(i => i.id === itemId ? { ...i, status } : i)
+        set((state) => ({
+          orders: state.orders.map(o =>
+            o.id === orderId
+              ? { ...o, items: o.items.map(i => i.id === itemId ? { ...i, status } : i), updatedAt: new Date() }
+              : o
+          )
+        }))
+        if (updatedItems) {
+          fetch(`/api/orders/${orderId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ items: updatedItems }) })
+            .catch(e => console.error('DB sync updateOrderItemStatus:', e))
+        }
+      },
 
-      addUser: (user) => set((state) => ({ users: [...state.users, user] })),
-      updateUser: (id, updates) => set((state) => ({
-        users: state.users.map(u => u.id === id ? { ...u, ...updates } : u)
-      })),
-      deleteUser: (id) => set((state) => ({ users: state.users.filter(u => u.id !== id) })),
+      addUser: (user) => {
+        set((state) => ({ users: [...state.users, user] }))
+        fetch('/api/users', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(user) })
+          .catch(e => console.error('DB sync addUser:', e))
+      },
+      updateUser: (id, updates) => {
+        set((state) => ({ users: state.users.map(u => u.id === id ? { ...u, ...updates } : u) }))
+        fetch(`/api/users/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(updates) })
+          .catch(e => console.error('DB sync updateUser:', e))
+      },
+      deleteUser: (id) => {
+        set((state) => ({ users: state.users.filter(u => u.id !== id) }))
+        fetch(`/api/users/${id}`, { method: 'DELETE' }).catch(e => console.error('DB sync deleteUser:', e))
+      },
 
-      addMenuItem: (item) => set((state) => ({ menuItems: [...state.menuItems, item] })),
-      updateMenuItem: (id, updates) => set((state) => ({
-        menuItems: state.menuItems.map(m => m.id === id ? { ...m, ...updates } : m)
-      })),
-      deleteMenuItem: (id) => set((state) => ({ menuItems: state.menuItems.filter(m => m.id !== id) })),
+      addMenuItem: (item) => {
+        set((state) => ({ menuItems: [...state.menuItems, item] }))
+        fetch('/api/menu-items', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(item) })
+          .catch(e => console.error('DB sync addMenuItem:', e))
+      },
+      updateMenuItem: (id, updates) => {
+        set((state) => ({ menuItems: state.menuItems.map(m => m.id === id ? { ...m, ...updates } : m) }))
+        fetch(`/api/menu-items/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(updates) })
+          .catch(e => console.error('DB sync updateMenuItem:', e))
+      },
+      deleteMenuItem: (id) => {
+        set((state) => ({ menuItems: state.menuItems.filter(m => m.id !== id) }))
+        fetch(`/api/menu-items/${id}`, { method: 'DELETE' }).catch(e => console.error('DB sync deleteMenuItem:', e))
+      },
+
+      initFromDB: async () => {
+        try {
+          const tenantId = get().currentTenant?.id
+          if (!tenantId) return
+          const [ordersRes, menuRes, usersRes] = await Promise.all([
+            fetch(`/api/orders?tenantId=${tenantId}`),
+            fetch(`/api/menu-items?tenantId=${tenantId}`),
+            fetch(`/api/users?tenantId=${tenantId}`),
+          ])
+          if (!ordersRes.ok || !menuRes.ok || !usersRes.ok) return
+          const [orders, menuItems, users] = await Promise.all([
+            ordersRes.json(), menuRes.json(), usersRes.json(),
+          ])
+          set({
+            orders: orders.map((o: any) => ({ ...o, createdAt: new Date(o.createdAt), updatedAt: new Date(o.updatedAt) })),
+            menuItems,
+            users: users.map((u: any) => ({ ...u, createdAt: new Date(u.createdAt) })),
+          })
+        } catch (e) {
+          console.error('initFromDB failed (using localStorage):', e)
+        }
+      },
     }),
     {
       name: 'buysial-pos-storage',

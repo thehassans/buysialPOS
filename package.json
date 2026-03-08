@@ -7,9 +7,13 @@
     "build": "next build",
     "start": "node server.js",
     "start:next": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "postinstall": "prisma generate",
+    "db:push": "prisma db push",
+    "db:studio": "prisma studio"
   },
   "dependencies": {
+    "@prisma/client": "^5.22.0",
     "@radix-ui/react-avatar": "^1.1.0",
     "@radix-ui/react-checkbox": "^1.1.1",
     "@radix-ui/react-dialog": "^1.1.1",
@@ -39,6 +43,7 @@
     "next": "14.2.5",
     "next-themes": "^0.3.0",
     "postcss": "^8.4.39",
+    "prisma": "^5.22.0",
     "qrcode": "^1.5.4",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",

@@ -19,10 +19,18 @@ import WaiterOrders from '../pos/WaiterOrders'
 import MenuManagementModule from '../modules/MenuManagementModule'
 
 export default function DashboardShell() {
-  const { currentUser, activeView, sidebarOpen, language } = useAppStore()
+  const { currentUser, currentTenant, activeView, sidebarOpen, language, initFromDB } = useAppStore()
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => { setMounted(true) }, [])
+
+  useEffect(() => {
+    if (currentUser && currentTenant) {
+      fetch('/api/seed', { method: 'POST' })
+        .then(() => initFromDB())
+        .catch(() => initFromDB())
+    }
+  }, [currentUser?.id, currentTenant?.id])
   if (!mounted || !currentUser) return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center">
       <div className="text-emerald-600 text-sm animate-pulse">Loading...</div>
