@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { useAppStore } from '@/store/app-store'
 import Sidebar from './Sidebar'
 import TopBar from './TopBar'
@@ -20,9 +21,16 @@ import MenuManagementModule from '../modules/MenuManagementModule'
 
 export default function DashboardShell() {
   const { currentUser, currentTenant, activeView, sidebarOpen, language, initFromDB } = useAppStore()
+  const router = useRouter()
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => { setMounted(true) }, [])
+
+  useEffect(() => {
+    if (mounted && !currentUser) {
+      router.replace('/login')
+    }
+  }, [mounted, currentUser])
 
   useEffect(() => {
     if (currentUser && currentTenant) {
@@ -31,11 +39,13 @@ export default function DashboardShell() {
         .catch(() => initFromDB())
     }
   }, [currentUser?.id, currentTenant?.id])
-  if (!mounted || !currentUser) return (
+
+  if (!mounted) return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center">
       <div className="text-emerald-600 text-sm animate-pulse">Loading...</div>
     </div>
   )
+  if (!currentUser) return null
 
   const isRTL = language === 'ar'
   const role = currentUser.role

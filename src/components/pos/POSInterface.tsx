@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useAppStore } from '@/store/app-store'
-import { MOCK_MENU_ITEMS, MOCK_CATEGORIES, MOCK_TABLES } from '@/lib/mock-data'
+import { MOCK_CATEGORIES } from '@/lib/mock-data'
 import { MenuItem, OrderItem, Table, OrderType } from '@/lib/types'
 import { TaxEngine } from '@/lib/country-config'
 import { cn } from '@/lib/utils'
@@ -14,7 +14,7 @@ import {
 } from 'lucide-react'
 
 export default function POSInterface() {
-  const { currentTenant, addOrder } = useAppStore()
+  const { currentTenant, addOrder, menuItems, tables, reserveTable } = useAppStore()
   const [orderType, setOrderType] = useState<OrderType>('dine_in')
   const [selectedTable, setSelectedTable] = useState<Table | null>(null)
   const [selectedCategory, setSelectedCategory] = useState<string>('all')
@@ -30,7 +30,7 @@ export default function POSInterface() {
   if (!currentTenant) return null
   const taxEngine = new TaxEngine(currentTenant.countryCode, currentTenant.vatRate)
 
-  const filteredItems = MOCK_MENU_ITEMS.filter(item => {
+  const filteredItems = menuItems.filter(item => {
     const matchesCategory = selectedCategory === 'all' || item.categoryId === selectedCategory
     const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (item.nameAr && item.nameAr.includes(searchQuery))
@@ -83,6 +83,9 @@ export default function POSInterface() {
       customerPhone: customerPhone || undefined,
     }
     addOrder(order)
+    if (orderType === 'dine_in' && selectedTable) {
+      reserveTable(selectedTable.number, order.id)
+    }
     setLastOrder(order)
     if (autoPrintKitchen) {
       printKitchenTicket(order, currentTenant)
@@ -184,7 +187,7 @@ export default function POSInterface() {
                 <h3 className="text-gray-900 font-semibold text-sm">Select Table</h3>
               </div>
               <div className="grid grid-cols-5 gap-2">
-                {MOCK_TABLES.slice(0, 20).map(table => (
+                {tables.filter(t => t.tenantId === currentTenant.id).map(table => (
                   <button
                     key={table.id}
                     onClick={() => setSelectedTable(table)}

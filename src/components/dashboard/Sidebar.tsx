@@ -1,14 +1,16 @@
 'use client'
 
 import { useAppStore } from '@/store/app-store'
+import Image from 'next/image'
 import {
   LayoutDashboard, ShoppingCart, ChefHat, Package, Users,
   QrCode, Settings, BarChart3, Building2, LogOut, ChevronLeft,
-  ChevronRight, Receipt, Globe, UtensilsCrossed
+  ChevronRight, Receipt, UtensilsCrossed
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { ROLE_LABELS } from '@/lib/utils'
 import { getInitials } from '@/lib/utils'
+import { useRouter } from 'next/navigation'
 
 const NAV_ITEMS = {
   super_admin: [
@@ -50,6 +52,7 @@ const NAV_ITEMS = {
 
 export default function Sidebar() {
   const { currentUser, currentTenant, activeView, setActiveView, sidebarOpen, toggleSidebar, logout, language } = useAppStore()
+  const router = useRouter()
   if (!currentUser) return null
 
   const isAr = language === 'ar'
@@ -63,9 +66,7 @@ export default function Sidebar() {
     )}>
       {/* Logo */}
       <div className="flex items-center gap-3 p-4 border-b border-gray-100 h-16">
-        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500 to-emerald-700 flex items-center justify-center flex-shrink-0">
-          <ChefHat className="w-4 h-4 text-gray-900" />
-        </div>
+        <Image src="/logo.png" alt="BuysialPOS" width={32} height={32} className="rounded-lg object-contain flex-shrink-0" />
         {sidebarOpen && (
           <div className="overflow-hidden">
             <div className="font-bold text-gray-900 text-sm truncate">Buysial ERP</div>
@@ -104,7 +105,7 @@ export default function Sidebar() {
               <div className="text-gray-900 text-xs font-medium truncate">{currentUser.name}</div>
               <div className="text-slate-500 text-xs">{ROLE_LABELS[currentUser.role]}</div>
             </div>
-            <button onClick={logout} className="text-slate-400 hover:text-red-500 transition-colors">
+            <button onClick={() => { logout(); router.push('/login') }} className="text-slate-400 hover:text-red-500 transition-colors">
               <LogOut className="w-3.5 h-3.5" />
             </button>
           </div>

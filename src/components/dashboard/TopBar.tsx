@@ -1,14 +1,14 @@
 'use client'
 
 import { useAppStore } from '@/store/app-store'
-import { Bell, Globe, Sun, Moon, ChefHat, ArrowLeft, ArrowRight } from 'lucide-react'
+import { Bell, Globe, ChefHat, ArrowLeft, ArrowRight, LogOut } from 'lucide-react'
 import { ROLE_LABELS, ROLE_COLORS } from '@/lib/utils'
 import { cn } from '@/lib/utils'
 import { useRouter } from 'next/navigation'
 import { getCountryConfig } from '@/lib/country-config'
 
 export default function TopBar() {
-  const { currentUser, currentTenant, language, setLanguage, activeView } = useAppStore()
+  const { currentUser, currentTenant, language, setLanguage, activeView, logout } = useAppStore()
   const router = useRouter()
   if (!currentUser || !currentTenant) return null
 
@@ -74,6 +74,15 @@ export default function TopBar() {
             {ROLE_LABELS[currentUser.role]}
           </span>
         </div>
+
+        <button
+          onClick={() => { logout(); router.push('/login') }}
+          className="flex items-center gap-1.5 px-2.5 py-1.5 bg-red-50 border border-red-200 rounded-lg text-xs font-medium text-red-600 hover:bg-red-100 transition-all"
+          title="Logout"
+        >
+          <LogOut className="w-3.5 h-3.5" />
+          <span className="hidden sm:inline">Logout</span>
+        </button>
       </div>
     </header>
   )

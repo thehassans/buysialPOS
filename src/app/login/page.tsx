@@ -4,9 +4,10 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAppStore } from '@/store/app-store'
 import { UserRole } from '@/lib/types'
+import Image from 'next/image'
 import {
   ChefHat, Shield, Building2, BarChart3, Receipt, Users,
-  Eye, EyeOff, ArrowRight, Sparkles, Globe, Lock,
+  Eye, EyeOff, ArrowRight, Globe, Lock,
   CheckCircle, Star, Zap, Award
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -134,9 +135,7 @@ export default function LoginPage() {
         {/* Logo */}
         <div className="relative z-10">
           <div className="flex items-center gap-3 mb-12">
-            <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-700 flex items-center justify-center shadow-lg shadow-emerald-900/50">
-              <ChefHat className="w-6 h-6 text-white" />
-            </div>
+            <Image src="/logo.png" alt="BuysialPOS" width={44} height={44} className="rounded-2xl object-contain" />
             <div>
               <div className="text-white font-black text-xl tracking-tight">Buysial ERP</div>
               <div className="text-emerald-400 text-xs font-medium">Restaurant Intelligence Platform</div>
@@ -186,9 +185,7 @@ export default function LoginPage() {
 
           {/* Mobile logo */}
           <div className="flex items-center gap-2 mb-8 lg:hidden">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-700 flex items-center justify-center">
-              <ChefHat className="w-5 h-5 text-white" />
-            </div>
+            <Image src="/logo.png" alt="BuysialPOS" width={36} height={36} className="rounded-xl object-contain" />
             <span className="text-gray-900 font-black text-lg">Buysial ERP</span>
           </div>
 

@@ -5,7 +5,10 @@ export const metadata: Metadata = {
   title: 'Buysial ERP – Premium Restaurant POS & Management System',
   description: 'Multi-tenant SaaS Restaurant POS System with ZATCA/FTA compliance for KSA & UAE',
   manifest: '/manifest.json',
-  icons: { icon: '/favicon.ico' },
+  icons: {
+    icon: '/favicon.png',
+    apple: '/favicon.png',
+  },
 }
 
 export const viewport: Viewport = {

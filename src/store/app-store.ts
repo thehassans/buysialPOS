@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
-import { User, Tenant, Order, OrderItem, MenuItem, Theme, Language, UserRole } from '@/lib/types'
-import { MOCK_USERS, MOCK_TENANTS, MOCK_ORDERS, MOCK_MENU_ITEMS } from '@/lib/mock-data'
+import { User, Tenant, Order, OrderItem, MenuItem, Table, Theme, Language, UserRole } from '@/lib/types'
+import { MOCK_USERS, MOCK_TENANTS, MOCK_ORDERS, MOCK_MENU_ITEMS, MOCK_TABLES } from '@/lib/mock-data'
 
 interface AppState {
   currentUser: User | null
@@ -11,6 +11,7 @@ interface AppState {
   orders: Order[]
   users: User[]
   menuItems: MenuItem[]
+  tables: Table[]
   activeView: string
   sidebarOpen: boolean
 
@@ -31,6 +32,8 @@ interface AppState {
   addMenuItem: (item: MenuItem) => void
   updateMenuItem: (id: string, updates: Partial<MenuItem>) => void
   deleteMenuItem: (id: string) => void
+  reserveTable: (tableNumber: number, orderId: string) => void
+  releaseTable: (tableNumber: number) => void
   initFromDB: () => Promise<void>
 }
 
@@ -44,6 +47,7 @@ export const useAppStore = create<AppState>()(
       orders: MOCK_ORDERS,
       users: MOCK_USERS,
       menuItems: MOCK_MENU_ITEMS,
+      tables: MOCK_TABLES,
       activeView: 'dashboard',
       sidebarOpen: true,
 
@@ -123,6 +127,18 @@ export const useAppStore = create<AppState>()(
         fetch(`/api/menu-items/${id}`, { method: 'DELETE' }).catch(e => console.error('DB sync deleteMenuItem:', e))
       },
 
+      reserveTable: (tableNumber, orderId) => set((state) => ({
+        tables: state.tables.map(t =>
+          t.number === tableNumber ? { ...t, isOccupied: true, currentOrderId: orderId } : t
+        )
+      })),
+
+      releaseTable: (tableNumber) => set((state) => ({
+        tables: state.tables.map(t =>
+          t.number === tableNumber ? { ...t, isOccupied: false, currentOrderId: undefined } : t
+        )
+      })),
+
       initFromDB: async () => {
         try {
           const tenantId = get().currentTenant?.id
@@ -158,6 +174,7 @@ export const useAppStore = create<AppState>()(
         orders: state.orders,
         users: state.users,
         menuItems: state.menuItems,
+        tables: state.tables,
       }),
     }
   )

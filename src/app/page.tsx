@@ -1,10 +1,5 @@
-'use client'
-
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
-import LandingPage from '@/components/landing/LandingPage'
+import { redirect } from 'next/navigation'
 
 export default function Home() {
-  const router = useRouter()
-  return <LandingPage />
+  redirect('/login')
 }
