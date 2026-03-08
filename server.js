@@ -1,23 +1,22 @@
-const express = require('express')
-const next = require('next')
+const { createServer } = require('http')
 const { parse } = require('url')
+const next = require('next')
 
-const dev = process.env.NODE_ENV !== 'production'
+const dev = false
 const port = parseInt(process.env.PORT || '3000', 10)
 
-const nextApp = next({ dev })
-const handle = nextApp.getRequestHandler()
+const app = next({ dev })
+const handle = app.getRequestHandler()
 
-nextApp.prepare().then(() => {
-  const server = express()
-
-  server.all('*', (req, res) => {
+app.prepare().then(() => {
+  createServer((req, res) => {
     const parsedUrl = parse(req.url, true)
-    return handle(req, res, parsedUrl)
-  })
-
-  server.listen(port, (err) => {
+    handle(req, res, parsedUrl)
+  }).listen(port, (err) => {
     if (err) throw err
-    console.log(`> BuysialPOS ready on port ${port}`)
+    console.log('> BuysialPOS running on port ' + port)
   })
+}).catch((err) => {
+  console.error('Failed to start:', err)
+  process.exit(1)
 })
