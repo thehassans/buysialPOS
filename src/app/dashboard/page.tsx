@@ -1,12 +1,12 @@
 'use client'
 
-import { useEffect } from 'react'
+import { Suspense, useEffect } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { useAppStore } from '@/store/app-store'
 import { UserRole } from '@/lib/types'
 import DashboardShell from '@/components/dashboard/DashboardShell'
 
-export default function DashboardPage() {
+function DashboardLoader() {
   const searchParams = useSearchParams()
   const { loginAs, currentUser } = useAppStore()
 
@@ -20,4 +20,16 @@ export default function DashboardPage() {
   }, [searchParams])
 
   return <DashboardShell />
+}
+
+export default function DashboardPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-emerald-600 text-sm animate-pulse">Loading...</div>
+      </div>
+    }>
+      <DashboardLoader />
+    </Suspense>
+  )
 }
