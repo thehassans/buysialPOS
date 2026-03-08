@@ -1,6 +1,5 @@
 'use client'
 
-import { useState } from 'react'
 import {
   TrendingUp, ShoppingCart, Package, Users, AlertTriangle,
   DollarSign, Clock, CheckCircle, ArrowUpRight, ChefHat
@@ -34,9 +33,6 @@ const CATEGORY_SALES = [
 
 export default function AdminDashboard() {
   const { currentTenant, orders } = useAppStore()
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [_activeView] = useState<string>('')
-
   if (!currentTenant) return null
   const taxEngine = new TaxEngine(currentTenant.countryCode, currentTenant.vatRate)
 
