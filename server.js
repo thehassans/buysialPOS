@@ -1,30 +1,23 @@
-const { createServer } = require('http')
-const { parse } = require('url')
+const express = require('express')
 const next = require('next')
+const { parse } = require('url')
 
 const dev = process.env.NODE_ENV !== 'production'
-const hostname = process.env.HOST || 'localhost'
 const port = parseInt(process.env.PORT || '3000', 10)
 
-const app = next({ dev, hostname, port })
-const handle = app.getRequestHandler()
+const nextApp = next({ dev })
+const handle = nextApp.getRequestHandler()
 
-app.prepare().then(() => {
-  createServer(async (req, res) => {
-    try {
-      const parsedUrl = parse(req.url, true)
-      await handle(req, res, parsedUrl)
-    } catch (err) {
-      console.error('Error occurred handling', req.url, err)
-      res.statusCode = 500
-      res.end('internal server error')
-    }
+nextApp.prepare().then(() => {
+  const server = express()
+
+  server.all('*', (req, res) => {
+    const parsedUrl = parse(req.url, true)
+    return handle(req, res, parsedUrl)
   })
-    .once('error', (err) => {
-      console.error(err)
-      process.exit(1)
-    })
-    .listen(port, () => {
-      console.log(`> BuysialPOS ready on http://${hostname}:${port}`)
-    })
+
+  server.listen(port, (err) => {
+    if (err) throw err
+    console.log(`> BuysialPOS ready on port ${port}`)
+  })
 })
