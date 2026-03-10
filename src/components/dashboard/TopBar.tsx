@@ -48,7 +48,8 @@ export default function TopBar() {
   const isAr = language === 'ar'
   const VIEW_LABELS: Record<string, string> = {
     dashboard: 'Dashboard',
-    pos: currentUser.role === 'cashier' ? 'Checkout' : 'Point of Sale',
+    pos: 'Point of Sale',
+    cashier: 'Payments',
     kds: 'Kitchen Display System',
     inventory: 'Inventory Management',
     hr: 'HR & Attendance',

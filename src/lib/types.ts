@@ -38,6 +38,7 @@ export interface Tenant {
   validUntil?: Date
   invoiceFooter?: string
   primaryColor?: string
+  adminPassword?: string
 }
 
 export interface User {

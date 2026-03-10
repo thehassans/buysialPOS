@@ -12,7 +12,7 @@ const EMPTY_FORM = {
   name: '', slug: '', email: '', phone: '', address: '',
   countryCode: 'KSA' as CountryCode, currency: 'SAR' as Currency,
   vatRate: 0.15, vatNumber: '', subscriptionPlan: 'starter' as SubscriptionPlan,
-  isActive: true, primaryColor: '#059669', validUntil: ''
+  isActive: true, primaryColor: '#059669', validUntil: '', adminPassword: ''
 }
 
 const COUNTRY_OPTIONS: { code: CountryCode; label: string; currency: Currency; vat: number }[] = [
@@ -63,7 +63,8 @@ export default function TenantsModule() {
       vatRate: t.vatRate, vatNumber: t.vatNumber || '',
       subscriptionPlan: t.subscriptionPlan, isActive: t.isActive,
       primaryColor: t.primaryColor || '#059669',
-      validUntil: t.validUntil ? new Date(t.validUntil).toISOString().split('T')[0] : ''
+      validUntil: t.validUntil ? new Date(t.validUntil).toISOString().split('T')[0] : '',
+      adminPassword: t.adminPassword || ''
     })
     setViewTenant(null)
     setShowForm(true)
@@ -258,6 +259,7 @@ export default function TenantsModule() {
                 { label: 'VAT Rate', value: `${(viewTenant.vatRate * 100).toFixed(0)}%` },
                 { label: 'Plan', value: viewTenant.subscriptionPlan },
                 { label: 'Valid Until', value: viewTenant.validUntil ? new Date(viewTenant.validUntil).toLocaleDateString() : 'Lifetime' },
+                { label: 'Admin Password', value: viewTenant.adminPassword ? '••••••••' : 'Not Set' },
               ].map(f => (
                 <div key={f.label} className="bg-gray-50 rounded-xl p-3">
                   <div className="text-slate-500 text-xs font-medium">{f.label}</div>
@@ -320,11 +322,13 @@ export default function TenantsModule() {
                 <Field label="Phone">
                   <input value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} className={inputCls} placeholder="+966-11-123-4567" />
                 </Field>
+                <Field label="Address">
+                  <input value={form.address} onChange={e => setForm(f => ({ ...f, address: e.target.value }))} className={inputCls} placeholder="King Fahd Road, Riyadh, KSA" />
+                </Field>
+                <Field label="Admin Password">
+                  <input type="password" value={form.adminPassword} onChange={e => setForm(f => ({ ...f, adminPassword: e.target.value }))} className={inputCls} placeholder="Leave blank for none" />
+                </Field>
               </div>
-
-              <Field label="Address">
-                <input value={form.address} onChange={e => setForm(f => ({ ...f, address: e.target.value }))} className={inputCls} placeholder="King Fahd Road, Riyadh, KSA" />
-              </Field>
 
               <div className="grid grid-cols-3 gap-4">
                 <Field label="Country">

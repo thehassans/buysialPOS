@@ -5,7 +5,7 @@ import Image from 'next/image'
 import {
   LayoutDashboard, ShoppingCart, ChefHat, Package, Users,
   QrCode, Settings, BarChart3, Building2, LogOut, ChevronLeft,
-  ChevronRight, Receipt, UtensilsCrossed
+  ChevronRight, Receipt, UtensilsCrossed, CreditCard
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { ROLE_LABELS } from '@/lib/utils'
@@ -46,6 +46,7 @@ const NAV_ITEMS = {
   ],
   cashier: [
     { id: 'pos', label: 'New Order', labelAr: 'طلب جديد', icon: ShoppingCart },
+    { id: 'cashier', label: 'Payments', labelAr: 'المدفوعات', icon: CreditCard },
     { id: 'kds', label: 'Kitchen Display', labelAr: 'شاشة المطبخ', icon: ChefHat },
     { id: 'reports', label: 'Reports', labelAr: 'التقارير', icon: BarChart3 },
   ],

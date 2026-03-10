@@ -56,9 +56,9 @@ export default function DashboardShell() {
         if (role === 'super_admin') return <SuperAdminDashboard />
         return <AdminDashboard />
       case 'pos':
-        if (role === 'waiter') return <POSInterface />
-        if (role === 'cashier') return <CashierInterface />
         return <POSInterface />
+      case 'cashier':
+        return <CashierInterface />
       case 'my-orders':
         return <WaiterOrders />
       case 'menu-management':
