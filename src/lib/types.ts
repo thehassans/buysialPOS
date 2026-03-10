@@ -35,6 +35,7 @@ export interface Tenant {
   subscriptionPlan: SubscriptionPlan
   isActive: boolean
   createdAt: Date
+  validUntil?: Date
   invoiceFooter?: string
   primaryColor?: string
 }

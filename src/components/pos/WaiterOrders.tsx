@@ -7,7 +7,7 @@ import { Order } from '@/lib/types'
 import {
   ClipboardList, Clock, CheckCircle2, ChefHat,
   UtensilsCrossed, ShoppingBag, Flame, CircleCheck,
-  XCircle, RefreshCw, Table2, User, Receipt
+  XCircle, RefreshCw, Table2, User, Receipt, Edit
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { printCustomerInvoice } from './InvoicePrint'
@@ -56,7 +56,7 @@ function StatusSteps({ status }: { status: string }) {
 }
 
 export default function WaiterOrders() {
-  const { currentUser, currentTenant, orders, updateOrder } = useAppStore()
+  const { currentUser, currentTenant, orders, updateOrder, setActiveView, setEditingOrder } = useAppStore()
   const [tick, setTick] = useState(0)
   const [filter, setFilter] = useState<'active' | 'all'>('active')
   const isAr = false
@@ -267,6 +267,17 @@ export default function WaiterOrders() {
 
                   {/* Actions */}
                   <div className="flex gap-2 mt-3 pt-3 border-t border-gray-100">
+                    {(order.status === 'pending' || order.status === 'preparing') && (
+                      <button
+                        onClick={() => {
+                          if (setEditingOrder) setEditingOrder(order)
+                          setActiveView('pos')
+                        }}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg text-xs font-semibold transition-all border border-blue-200"
+                      >
+                        <Edit className="w-3.5 h-3.5" /> Edit Order
+                      </button>
+                    )}
                     <button
                       onClick={() => printCustomerInvoice(order, currentTenant)}
                       className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-50 hover:bg-gray-100 text-slate-600 rounded-lg text-xs font-medium transition-all border border-gray-200"

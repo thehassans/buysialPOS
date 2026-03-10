@@ -12,30 +12,33 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-const ROLES: { role: UserRole; label: string; icon: any; desc: string; color: string; gradient: string; country?: string }[] = [
+const ROLES: { role: UserRole; label: string; icon: any; desc: string; color: string; gradient: string; country?: string; password?: string }[] = [
   {
     role: 'super_admin',
     label: 'Super Admin',
     icon: Shield,
     desc: 'Full platform control',
-    color: 'from-violet-600 to-purple-700',
-    gradient: 'bg-gradient-to-br from-violet-50 to-purple-50 border-violet-200',
+    color: 'from-blue-600 to-indigo-700',
+    gradient: 'bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-200',
+    password: 'superadmin123'
   },
   {
     role: 'admin',
     label: 'Owner / Admin',
     icon: Building2,
     desc: 'Restaurant management',
-    color: 'from-amber-500 to-orange-600',
-    gradient: 'bg-gradient-to-br from-amber-50 to-orange-50 border-amber-200',
+    color: 'from-slate-700 to-gray-900',
+    gradient: 'bg-gradient-to-br from-slate-50 to-gray-100 border-slate-200',
+    password: 'admin123'
   },
   {
     role: 'manager',
     label: 'Manager',
     icon: BarChart3,
     desc: 'Reports & operations',
-    color: 'from-blue-600 to-indigo-700',
-    gradient: 'bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-200',
+    color: 'from-sky-500 to-blue-600',
+    gradient: 'bg-gradient-to-br from-sky-50 to-blue-50 border-sky-200',
+    password: 'manager123'
   },
   {
     role: 'waiter',
@@ -44,22 +47,25 @@ const ROLES: { role: UserRole; label: string; icon: any; desc: string; color: st
     desc: 'Table ordering',
     color: 'from-cyan-500 to-teal-600',
     gradient: 'bg-gradient-to-br from-cyan-50 to-teal-50 border-cyan-200',
+    password: 'waiter123'
   },
   {
     role: 'chef',
     label: 'Chef / KDS',
     icon: ChefHat,
     desc: 'Kitchen display',
-    color: 'from-red-500 to-rose-600',
-    gradient: 'bg-gradient-to-br from-red-50 to-rose-50 border-red-200',
+    color: 'from-orange-500 to-red-600',
+    gradient: 'bg-gradient-to-br from-orange-50 to-red-50 border-orange-200',
+    password: 'chef123'
   },
   {
     role: 'cashier',
     label: 'Cashier',
     icon: Receipt,
     desc: 'Checkout & invoices',
-    color: 'from-emerald-600 to-green-700',
-    gradient: 'bg-gradient-to-br from-emerald-50 to-green-50 border-emerald-200',
+    color: 'from-emerald-500 to-teal-600',
+    gradient: 'bg-gradient-to-br from-emerald-50 to-teal-50 border-emerald-200',
+    password: 'cashier123'
   },
 ]
 
@@ -100,6 +106,11 @@ export default function LoginPage() {
   const handleLogin = async () => {
     if (!selectedRole) return
     if (!email || !password) { setError('Please enter your credentials'); return }
+    const roleConfig = ROLES.find(r => r.role === selectedRole)
+    if (password !== roleConfig?.password) {
+      setError('Incorrect password. Please try again.')
+      return
+    }
     setIsLoading(true)
     setError('')
     await new Promise(r => setTimeout(r, 900))
@@ -113,7 +124,7 @@ export default function LoginPage() {
     <div className="min-h-screen bg-white flex overflow-hidden">
 
       {/* LEFT PANEL — Branding */}
-      <div className="hidden lg:flex w-[45%] bg-gradient-to-br from-gray-950 via-emerald-950 to-gray-900 relative flex-col justify-between p-12 overflow-hidden">
+      <div className="hidden lg:flex w-[45%] bg-gradient-to-br from-slate-950 via-blue-950 to-blue-900 relative flex-col justify-between p-12 overflow-hidden shadow-2xl">
         {/* Background decorations */}
         <div className="absolute inset-0 overflow-hidden">
           <div className="absolute top-0 left-0 w-full h-full">
@@ -127,53 +138,55 @@ export default function LoginPage() {
               <rect width="100%" height="100%" fill="url(#grid)" />
             </svg>
           </div>
-          <div className="absolute top-1/4 -left-20 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl" />
-          <div className="absolute bottom-1/4 -right-20 w-80 h-80 bg-teal-500/10 rounded-full blur-3xl" />
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-emerald-600/5 rounded-full blur-2xl" />
+          <div className="absolute top-1/4 -left-20 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl animate-pulse" />
+          <div className="absolute bottom-1/4 -right-20 w-80 h-80 bg-sky-500/10 rounded-full blur-3xl" />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-blue-600/5 rounded-full blur-2xl" />
         </div>
 
         {/* Logo */}
-        <div className="relative z-10">
+        <div className="relative z-10 transition-transform hover:scale-105 duration-500">
           <div className="flex items-center gap-3 mb-12">
-            <Image src="/logo.png" alt="BuysialPOS" width={44} height={44} className="rounded-2xl object-contain" />
+            <div className="p-2 bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 shadow-xl">
+              <Image src="/logo.png" alt="BuysialPOS" width={38} height={38} className="rounded-xl object-contain" />
+            </div>
             <div>
               <div className="text-white font-black text-xl tracking-tight">Buysial ERP</div>
-              <div className="text-emerald-400 text-xs font-medium">Restaurant Intelligence Platform</div>
+              <div className="text-blue-300 text-xs font-semibold tracking-wider uppercase">Enterprise Edition</div>
             </div>
           </div>
 
-          <h1 className="text-4xl font-black text-white leading-tight mb-4">
+          <h1 className="text-4xl font-black text-white leading-tight mb-4 tracking-tight">
             The Future of<br />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-teal-300">
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-300">
               Restaurant Management
             </span>
           </h1>
-          <p className="text-gray-400 text-base leading-relaxed max-w-sm">
+          <p className="text-blue-100/80 text-base leading-relaxed max-w-sm font-light">
             Enterprise-grade POS, compliance, analytics and HR — built for the Middle East.
           </p>
         </div>
 
         {/* Features */}
-        <div className="relative z-10 space-y-3">
+        <div className="relative z-10 space-y-4">
           {FEATURES.map(({ icon: Icon, text }) => (
-            <div key={text} className="flex items-center gap-3">
-              <div className="w-7 h-7 rounded-lg bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center flex-shrink-0">
-                <Icon className="w-3.5 h-3.5 text-emerald-400" />
+            <div key={text} className="flex items-center gap-3 group transition-all">
+              <div className="w-8 h-8 rounded-xl bg-blue-500/10 border border-blue-400/20 flex items-center justify-center flex-shrink-0 group-hover:bg-blue-500/20 group-hover:scale-110 transition-all shadow-lg backdrop-blur-sm">
+                <Icon className="w-4 h-4 text-blue-300 group-hover:text-blue-200 transition-colors" />
               </div>
-              <span className="text-gray-300 text-sm">{text}</span>
+              <span className="text-blue-50/90 text-sm font-medium tracking-wide">{text}</span>
             </div>
           ))}
         </div>
 
         {/* Bottom quote */}
         <div className="relative z-10">
-          <div className="border-t border-white/10 pt-6">
-            <p className="text-gray-500 text-xs leading-relaxed">
+          <div className="border-t border-blue-400/20 pt-6 backdrop-blur-sm">
+            <p className="text-blue-200/80 text-sm leading-relaxed font-light italic">
               "Buysial transformed our operations across all 3 branches in Riyadh."
             </p>
-            <div className="flex items-center gap-2 mt-2">
-              <div className="w-6 h-6 rounded-full bg-emerald-700 flex items-center justify-center text-white text-[10px] font-bold">A</div>
-              <span className="text-gray-400 text-xs">Ahmed Al-Rashidi · Al Fanar Restaurant</span>
+            <div className="flex items-center gap-3 mt-4">
+              <div className="w-8 h-8 rounded-full bg-blue-600 border border-blue-400 flex items-center justify-center text-white text-xs font-black shadow-lg">A</div>
+              <span className="text-blue-100 text-xs font-semibold tracking-wide">Ahmed Al-Rashidi · Al Fanar</span>
             </div>
           </div>
         </div>
@@ -243,13 +256,13 @@ export default function LoginPage() {
                     <div className="text-gray-900 text-sm font-bold">{selectedRoleConfig.label}</div>
                     <div className="text-slate-500 text-xs">{selectedRoleConfig.desc}</div>
                   </div>
-                  <CheckCircle className="w-4 h-4 text-emerald-600 ml-auto" />
+                  <CheckCircle className="w-5 h-5 text-blue-600 ml-auto drop-shadow-sm" />
                 </div>
               )}
 
               <div className="mb-8">
-                <h2 className="text-3xl font-black text-gray-900 mb-1">Sign in</h2>
-                <p className="text-slate-500 text-sm">Credentials are pre-filled for demo</p>
+                <h2 className="text-3xl font-black text-gray-900 mb-1 tracking-tight">Sign in</h2>
+                <p className="text-slate-500 text-sm font-medium">Verify your access credentials</p>
               </div>
 
               {/* Form */}
@@ -260,7 +273,7 @@ export default function LoginPage() {
                     type="email"
                     value={email}
                     onChange={e => setEmail(e.target.value)}
-                    className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 text-gray-900 text-sm placeholder-slate-400 focus:border-emerald-500 focus:outline-none transition-colors bg-gray-50 focus:bg-white"
+                    className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 text-gray-900 text-sm placeholder-slate-400 focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500/10 transition-all bg-slate-50 focus:bg-white"
                     placeholder="your@email.com"
                   />
                 </div>
@@ -268,7 +281,7 @@ export default function LoginPage() {
                 <div>
                   <div className="flex items-center justify-between mb-1.5">
                     <label className="block text-sm font-semibold text-gray-700">Password</label>
-                    <button className="text-xs text-emerald-600 hover:text-emerald-700 font-medium">Forgot password?</button>
+                    <button className="text-xs text-blue-600 hover:text-blue-700 font-bold transition-colors">Forgot password?</button>
                   </div>
                   <div className="relative">
                     <input
@@ -276,12 +289,12 @@ export default function LoginPage() {
                       value={password}
                       onChange={e => setPassword(e.target.value)}
                       onKeyDown={e => e.key === 'Enter' && handleLogin()}
-                      className="w-full px-4 py-3 pr-12 rounded-xl border-2 border-gray-200 text-gray-900 text-sm placeholder-slate-400 focus:border-emerald-500 focus:outline-none transition-colors bg-gray-50 focus:bg-white"
+                      className="w-full px-4 py-3 pr-12 rounded-xl border-2 border-slate-200 text-gray-900 text-sm placeholder-slate-400 focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500/10 transition-all bg-slate-50 focus:bg-white"
                       placeholder="••••••••"
                     />
                     <button
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-blue-600 transition-colors p-1"
                     >
                       {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
@@ -299,10 +312,10 @@ export default function LoginPage() {
                   onClick={handleLogin}
                   disabled={isLoading}
                   className={cn(
-                    'w-full py-3.5 rounded-xl font-bold text-base transition-all duration-200 flex items-center justify-center gap-2',
+                    'w-full py-3.5 rounded-xl font-bold text-base transition-all duration-300 flex items-center justify-center gap-2',
                     isLoading
-                      ? 'bg-emerald-400 text-white cursor-not-allowed'
-                      : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-200 hover:shadow-emerald-300 hover:-translate-y-0.5 active:translate-y-0'
+                      ? 'bg-blue-400 text-white cursor-not-allowed'
+                      : 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 hover:-translate-y-0.5 active:translate-y-0'
                   )}
                 >
                   {isLoading ? (

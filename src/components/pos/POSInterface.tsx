@@ -3,18 +3,19 @@
 import { useState } from 'react'
 import { useAppStore } from '@/store/app-store'
 import { MOCK_CATEGORIES } from '@/lib/mock-data'
-import { MenuItem, OrderItem, Table, OrderType } from '@/lib/types'
+import { MenuItem, OrderItem, Table, OrderType, Order } from '@/lib/types'
 import { TaxEngine } from '@/lib/country-config'
 import { cn } from '@/lib/utils'
 import { generateInvoiceNumber } from '@/lib/utils'
 import { printCustomerInvoice, printKitchenTicket } from './InvoicePrint'
 import {
   ShoppingCart, Plus, Minus, Trash2, Send, Table2,
-  CheckCircle, Search, UtensilsCrossed, ShoppingBag, User, Phone, Printer, Receipt
+  CheckCircle, Search, UtensilsCrossed, ShoppingBag, User, Phone, Printer, Receipt, XCircle
 } from 'lucide-react'
+import { useEffect } from 'react'
 
 export default function POSInterface() {
-  const { currentTenant, addOrder, menuItems, tables, reserveTable } = useAppStore()
+  const { currentTenant, addOrder, updateOrder, menuItems, tables, reserveTable, editingOrder, setEditingOrder } = useAppStore()
   const [orderType, setOrderType] = useState<OrderType>('dine_in')
   const [selectedTable, setSelectedTable] = useState<Table | null>(null)
   const [selectedCategory, setSelectedCategory] = useState<string>('all')
@@ -26,6 +27,19 @@ export default function POSInterface() {
   const [customerName, setCustomerName] = useState('')
   const [customerPhone, setCustomerPhone] = useState('')
   const [autoPrintKitchen, setAutoPrintKitchen] = useState(true)
+
+  useEffect(() => {
+    if (editingOrder) {
+      setCart(editingOrder.items || [])
+      setOrderType(editingOrder.orderType || 'dine_in')
+      setNotes(editingOrder.notes || '')
+      setCustomerName(editingOrder.customerName || '')
+      if (editingOrder.tableNumber) {
+        const table = tables.find(t => t.number === editingOrder.tableNumber && t.tenantId === currentTenant?.id)
+        if (table) setSelectedTable(table)
+      }
+    }
+  }, [editingOrder, tables, currentTenant?.id])
 
   if (!currentTenant) return null
   const taxEngine = new TaxEngine(currentTenant.countryCode, currentTenant.vatRate)
@@ -63,6 +77,37 @@ export default function POSInterface() {
   const sendOrder = () => {
     if (orderType === 'dine_in' && !selectedTable) return
     if (cart.length === 0) return
+
+    if (editingOrder) {
+      updateOrder(editingOrder.id, {
+        items: cart,
+        subtotal,
+        vatAmount,
+        total,
+        notes,
+        tableNumber: orderType === 'dine_in' ? selectedTable?.number : undefined,
+        orderType,
+        customerName: customerName || undefined,
+        customerPhone: customerPhone || undefined,
+      })
+      setLastOrder({ ...editingOrder, items: cart, total, subtotal, vatAmount })
+      if (autoPrintKitchen) {
+        printKitchenTicket({ ...editingOrder, items: cart } as Order, currentTenant)
+      }
+      setOrderSent(true)
+      setTimeout(() => {
+        setEditingOrder(null)
+        setCart([])
+        setOrderSent(false)
+        setLastOrder(null)
+        setSelectedTable(null)
+        setNotes('')
+        setCustomerName('')
+        setCustomerPhone('')
+      }, 2500)
+      return
+    }
+
     const order = {
       id: `ord-${Date.now()}`,
       tenantId: currentTenant.id,
@@ -111,7 +156,7 @@ export default function POSInterface() {
             <CheckCircle className="w-10 h-10 text-emerald-600" />
           </div>
           <div>
-            <h3 className="text-2xl font-black text-gray-900">Order Sent!</h3>
+            <h3 className="text-2xl font-black text-gray-900">{editingOrder ? 'Order Updated!' : 'Order Sent!'}</h3>
             <p className="text-slate-500 mt-1">{lastOrder.invoiceNumber}</p>
           </div>
           <div className="flex items-center justify-center gap-2">
@@ -278,31 +323,49 @@ export default function POSInterface() {
         </div>
 
         {/* Customer Info (for takeaway or optional for dine-in) */}
-        <div className="px-3 pt-3 space-y-2">
-          <div className="relative">
-            <User className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-            <input
-              value={customerName}
-              onChange={e => setCustomerName(e.target.value)}
-              placeholder={orderType === 'takeaway' ? 'Customer name *' : 'Customer name (optional)'}
-              className="w-full pl-8 pr-3 py-2 bg-gray-50 rounded-lg text-xs text-gray-900 placeholder-slate-400 border border-gray-200 focus:outline-none focus:border-emerald-400"
-            />
-          </div>
-          {orderType === 'takeaway' && (
+        {!editingOrder && (
+          <div className="px-3 pt-3 space-y-2">
             <div className="relative">
-              <Phone className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+              <User className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
               <input
-                value={customerPhone}
-                onChange={e => setCustomerPhone(e.target.value)}
-                placeholder="Phone number"
+                value={customerName}
+                onChange={e => setCustomerName(e.target.value)}
+                placeholder={orderType === 'takeaway' ? 'Customer name *' : 'Customer name (optional)'}
                 className="w-full pl-8 pr-3 py-2 bg-gray-50 rounded-lg text-xs text-gray-900 placeholder-slate-400 border border-gray-200 focus:outline-none focus:border-emerald-400"
               />
             </div>
-          )}
-        </div>
+            {orderType === 'takeaway' && (
+              <div className="relative">
+                <Phone className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+                <input
+                  value={customerPhone}
+                  onChange={e => setCustomerPhone(e.target.value)}
+                  placeholder="Phone number"
+                  className="w-full pl-8 pr-3 py-2 bg-gray-50 rounded-lg text-xs text-gray-900 placeholder-slate-400 border border-gray-200 focus:outline-none focus:border-emerald-400"
+                />
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Cart Items */}
         <div className="flex-1 overflow-y-auto p-3 space-y-2 scrollbar-thin">
+          {editingOrder && (
+            <div className="bg-blue-50 border border-blue-200 px-3 py-2 rounded-xl flex items-center justify-between mb-2">
+              <span className="text-xs font-bold text-blue-700">Editing: {editingOrder.invoiceNumber}</span>
+              <button 
+                onClick={() => {
+                  setEditingOrder(null)
+                  setCart([])
+                  setSelectedTable(null)
+                }}
+                className="p-1 rounded-full hover:bg-blue-200 text-blue-600 transition-colors"
+                title="Cancel Edit"
+              >
+                <XCircle className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
           {cart.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center py-8">
               <ShoppingCart className="w-8 h-8 text-slate-300 mb-2" />
@@ -382,16 +445,20 @@ export default function POSInterface() {
               className={cn(
                 'w-full py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2',
                 (orderType === 'takeaway' || selectedTable)
-                  ? orderType === 'dine_in'
+                  ? editingOrder
                     ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-sm'
-                    : 'bg-orange-500 hover:bg-orange-600 text-white shadow-sm'
+                    : orderType === 'dine_in'
+                      ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-sm'
+                      : 'bg-orange-500 hover:bg-orange-600 text-white shadow-sm'
                   : 'bg-gray-100 text-slate-400 cursor-not-allowed'
               )}
             >
               <Send className="w-4 h-4" />
-              {orderType === 'dine_in'
-                ? (selectedTable ? `Send to Kitchen · T${selectedTable.number}` : 'Select a Table First')
-                : 'Send Take Away Order'
+              {editingOrder 
+                ? `Update Order (${cart.length} items)`
+                : orderType === 'dine_in'
+                  ? (selectedTable ? `Send to Kitchen · T${selectedTable.number}` : 'Select a Table First')
+                  : 'Send Take Away Order'
               }
             </button>
           </div>

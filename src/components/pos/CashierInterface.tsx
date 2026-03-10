@@ -7,12 +7,12 @@ import { cn, formatDate } from '@/lib/utils'
 import { Order } from '@/lib/types'
 import {
   Receipt, CreditCard, Banknote, Smartphone, Check,
-  Printer, Download, X, AlertCircle, QrCode, UtensilsCrossed, ShoppingBag
+  Printer, Download, X, AlertCircle, QrCode, UtensilsCrossed, ShoppingBag, Edit
 } from 'lucide-react'
 import { printCustomerInvoice } from './InvoicePrint'
 
 export default function CashierInterface() {
-  const { currentTenant, orders, updateOrder } = useAppStore()
+  const { currentTenant, orders, updateOrder, setActiveView, setEditingOrder } = useAppStore()
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'card' | 'digital'>('cash')
   const [paymentDone, setPaymentDone] = useState(false)
@@ -152,6 +152,17 @@ export default function CashierInterface() {
                 </p>
               </div>
               <div className="flex gap-2">
+                {(selectedOrder.status === 'pending' || selectedOrder.status === 'preparing') && (
+                  <button
+                    onClick={() => {
+                      if (setEditingOrder) setEditingOrder(selectedOrder)
+                      setActiveView('pos')
+                    }}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg text-xs font-semibold transition-all border border-blue-200"
+                  >
+                    <Edit className="w-3.5 h-3.5" /> Edit
+                  </button>
+                )}
                 <button
                   onClick={() => printCustomerInvoice(selectedOrder, currentTenant)}
                   className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-medium transition-all"

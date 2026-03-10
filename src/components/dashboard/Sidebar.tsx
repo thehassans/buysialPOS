@@ -45,7 +45,8 @@ const NAV_ITEMS = {
     { id: 'kds', label: 'Kitchen Display', labelAr: 'شاشة المطبخ', icon: ChefHat },
   ],
   cashier: [
-    { id: 'pos', label: 'Checkout', labelAr: 'الدفع', icon: Receipt },
+    { id: 'pos', label: 'New Order', labelAr: 'طلب جديد', icon: ShoppingCart },
+    { id: 'kds', label: 'Kitchen Display', labelAr: 'شاشة المطبخ', icon: ChefHat },
     { id: 'reports', label: 'Reports', labelAr: 'التقارير', icon: BarChart3 },
   ],
 }

@@ -14,6 +14,7 @@ interface AppState {
   tables: Table[]
   activeView: string
   sidebarOpen: boolean
+  editingOrder: Order | null
 
   setCurrentUser: (user: User | null) => void
   setCurrentTenant: (tenant: Tenant | null) => void
@@ -23,6 +24,7 @@ interface AppState {
   toggleSidebar: () => void
   loginAs: (role: UserRole, tenantId?: string) => void
   logout: () => void
+  setEditingOrder: (order: Order | null) => void
   addOrder: (order: Order) => void
   updateOrder: (id: string, updates: Partial<Order>) => void
   updateOrderItemStatus: (orderId: string, itemId: string, status: OrderItem['status']) => void
@@ -50,6 +52,7 @@ export const useAppStore = create<AppState>()(
       tables: MOCK_TABLES,
       activeView: 'dashboard',
       sidebarOpen: true,
+      editingOrder: null,
 
       setCurrentUser: (user) => set({ currentUser: user }),
       setCurrentTenant: (tenant) => set({ currentTenant: tenant }),
@@ -68,6 +71,8 @@ export const useAppStore = create<AppState>()(
       },
 
       logout: () => set({ currentUser: null, currentTenant: null }),
+
+      setEditingOrder: (order) => set({ editingOrder: order }),
 
       addOrder: (order) => {
         set((state) => ({ orders: [order, ...state.orders] }))

@@ -3,14 +3,16 @@
 import { useState } from 'react'
 import { MOCK_TENANTS } from '@/lib/mock-data'
 import { cn } from '@/lib/utils'
-import { Plus, Search, CheckCircle, XCircle, Crown, X, Edit2 } from 'lucide-react'
+import { Plus, Search, CheckCircle, XCircle, Crown, X, Edit2, LogIn } from 'lucide-react'
 import { Tenant, CountryCode, Currency, SubscriptionPlan } from '@/lib/types'
+import { useRouter } from 'next/navigation'
+import { useAppStore } from '@/store/app-store'
 
 const EMPTY_FORM = {
   name: '', slug: '', email: '', phone: '', address: '',
   countryCode: 'KSA' as CountryCode, currency: 'SAR' as Currency,
   vatRate: 0.15, vatNumber: '', subscriptionPlan: 'starter' as SubscriptionPlan,
-  isActive: true, primaryColor: '#059669',
+  isActive: true, primaryColor: '#059669', validUntil: ''
 }
 
 const COUNTRY_OPTIONS: { code: CountryCode; label: string; currency: Currency; vat: number }[] = [
@@ -32,6 +34,8 @@ const inputCls = "w-full px-3 py-2 rounded-xl border border-gray-200 text-sm tex
 const selectCls = "w-full px-3 py-2 rounded-xl border border-gray-200 text-sm text-gray-900 focus:border-emerald-500 focus:outline-none bg-gray-50 focus:bg-white transition-colors"
 
 export default function TenantsModule() {
+  const router = useRouter()
+  const { loginAs } = useAppStore()
   const [tenants, setTenants] = useState<Tenant[]>(MOCK_TENANTS)
   const [search, setSearch] = useState('')
   const [viewTenant, setViewTenant] = useState<Tenant | null>(null)
@@ -59,6 +63,7 @@ export default function TenantsModule() {
       vatRate: t.vatRate, vatNumber: t.vatNumber || '',
       subscriptionPlan: t.subscriptionPlan, isActive: t.isActive,
       primaryColor: t.primaryColor || '#059669',
+      validUntil: t.validUntil ? new Date(t.validUntil).toISOString().split('T')[0] : ''
     })
     setViewTenant(null)
     setShowForm(true)
@@ -73,7 +78,10 @@ export default function TenantsModule() {
     if (!form.name.trim() || !form.email.trim()) return
     if (editingId) {
       setTenants(prev => prev.map(t => t.id === editingId ? {
-        ...t, ...form, vatRate: Number(form.vatRate),
+        ...t, 
+        ...form, 
+        vatRate: Number(form.vatRate),
+        validUntil: form.validUntil ? new Date(form.validUntil) : undefined
       } : t))
     } else {
       const newTenant: Tenant = {
@@ -82,6 +90,7 @@ export default function TenantsModule() {
         vatRate: Number(form.vatRate),
         slug: form.slug || form.name.toLowerCase().replace(/\s+/g, '-'),
         createdAt: new Date(),
+        validUntil: form.validUntil ? new Date(form.validUntil) : undefined,
         invoiceFooter: 'Thank you for dining with us!',
       }
       setTenants(prev => [newTenant, ...prev])
@@ -189,6 +198,15 @@ export default function TenantsModule() {
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1.5">
                       <button
+                        onClick={() => {
+                          loginAs('admin', tenant.id)
+                          router.push('/dashboard?role=admin')
+                        }}
+                        className="flex items-center gap-1 px-2.5 py-1 bg-white rounded-lg text-xs text-blue-600 font-medium border border-blue-200 hover:border-blue-400 hover:bg-blue-50 hover:shadow-sm transition-all"
+                      >
+                        <LogIn className="w-3 h-3" /> Login As
+                      </button>
+                      <button
                         onClick={() => setViewTenant(tenant)}
                         className="px-2.5 py-1 bg-white rounded-lg text-xs text-emerald-600 font-medium border border-gray-200 hover:border-emerald-300 hover:bg-emerald-50 transition-all"
                       >
@@ -239,6 +257,7 @@ export default function TenantsModule() {
                 { label: 'Currency', value: viewTenant.currency },
                 { label: 'VAT Rate', value: `${(viewTenant.vatRate * 100).toFixed(0)}%` },
                 { label: 'Plan', value: viewTenant.subscriptionPlan },
+                { label: 'Valid Until', value: viewTenant.validUntil ? new Date(viewTenant.validUntil).toLocaleDateString() : 'Lifetime' },
               ].map(f => (
                 <div key={f.label} className="bg-gray-50 rounded-xl p-3">
                   <div className="text-slate-500 text-xs font-medium">{f.label}</div>
@@ -324,11 +343,14 @@ export default function TenantsModule() {
                 </Field>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <Field label="Subscription Plan">
                   <select value={form.subscriptionPlan} onChange={e => setForm(f => ({ ...f, subscriptionPlan: e.target.value as SubscriptionPlan }))} className={selectCls}>
                     {PLAN_OPTIONS.map(p => <option key={p} value={p}>{p.charAt(0).toUpperCase() + p.slice(1)}</option>)}
                   </select>
+                </Field>
+                <Field label="Expiration Date">
+                  <input type="date" value={form.validUntil} onChange={e => setForm(f => ({ ...f, validUntil: e.target.value }))} className={inputCls} />
                 </Field>
                 <Field label="Status">
                   <select value={form.isActive ? 'active' : 'inactive'} onChange={e => setForm(f => ({ ...f, isActive: e.target.value === 'active' }))} className={selectCls}>
