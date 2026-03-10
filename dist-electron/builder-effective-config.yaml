@@ -1,0 +1,18 @@
+directories:
+  output: dist-electron
+  buildResources: build
+appId: com.buysial.pos
+productName: BuysialPOS
+asar: false
+files:
+  - filter:
+      - .next/**/*
+      - public/**/*
+      - main.js
+      - server.js
+      - prisma/**/*
+      - package.json
+      - node_modules/**/*
+win:
+  target: nsis
+electronVersion: 40.8.0

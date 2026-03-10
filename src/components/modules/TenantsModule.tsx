@@ -345,8 +345,7 @@ export default function TenantsModule() {
               </button>
               <button
                 onClick={handleSave}
-                disabled={!form.name.trim() || !form.email.trim()}
-                className="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                className="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold transition-all"
               >
                 {editingId ? 'Save Changes' : 'Create Tenant'}
               </button>

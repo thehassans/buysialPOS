@@ -59,3 +59,13 @@ model User {
   hourlyRate Float?
   createdAt  DateTime @default(now())
 }
+
+model SyncQueue {
+  id        String   @id @default(uuid())
+  entity    String   // e.g., "Order"
+  entityId  String   // e.g., the Order ID
+  operation String   // e.g., "CREATE", "UPDATE", "DELETE"
+  payload   String   // JSON string of the data
+  status    String   @default("PENDING") // "PENDING", "SYNCED", "FAILED"
+  createdAt DateTime @default(now())
+}

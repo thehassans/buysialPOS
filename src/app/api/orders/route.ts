@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { Order } from '@/lib/types'
+import { enqueueSyncOperation } from '@/lib/syncService'
 
 function dbToOrder(o: any): Order {
   return {
@@ -44,6 +45,10 @@ export async function POST(req: Request) {
         updatedAt: new Date(),
       },
     })
+    
+    // Add to SyncQueue so it gets pushed to the Online Portal later
+    await enqueueSyncOperation('Order', saved.id, 'CREATE', saved);
+    
     return NextResponse.json(dbToOrder(saved))
   } catch (e) {
     console.error('POST /api/orders error:', e)

@@ -72,6 +72,11 @@ export const useAppStore = create<AppState>()(
       addOrder: (order) => {
         set((state) => ({ orders: [order, ...state.orders] }))
         fetch('/api/orders', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(order) })
+          .then(() => {
+            if (typeof navigator !== 'undefined' && navigator.onLine) {
+              fetch('/api/sync/trigger', { method: 'POST' }).catch(e => console.error('Auto sync failed:', e))
+            }
+          })
           .catch(e => console.error('DB sync addOrder:', e))
       },
 

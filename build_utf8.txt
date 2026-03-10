@@ -1,0 +1,12 @@
+﻿
+> buysial-erp@1.0.0 dist
+> npm run build && electron-builder
+
+
+> buysial-erp@1.0.0 build
+> next build
+
+  Γû▓ Next.js 14.2.5
+  - Environments: .env
+
+   Creating an optimized production build ...

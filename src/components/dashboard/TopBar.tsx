@@ -1,7 +1,8 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import { useAppStore } from '@/store/app-store'
-import { Bell, Globe, ChefHat, ArrowLeft, ArrowRight, LogOut } from 'lucide-react'
+import { Bell, Globe, ChefHat, ArrowLeft, ArrowRight, LogOut, Cloud, CloudOff, RefreshCw } from 'lucide-react'
 import { ROLE_LABELS, ROLE_COLORS } from '@/lib/utils'
 import { cn } from '@/lib/utils'
 import { useRouter } from 'next/navigation'
@@ -10,6 +11,37 @@ import { getCountryConfig } from '@/lib/country-config'
 export default function TopBar() {
   const { currentUser, currentTenant, language, setLanguage, activeView, logout } = useAppStore()
   const router = useRouter()
+  
+  const [isOnline, setIsOnline] = useState(true)
+  const [isSyncing, setIsSyncing] = useState(false)
+  const [lastSynced, setLastSynced] = useState<Date | null>(null)
+
+  useEffect(() => {
+    setIsOnline(navigator.onLine)
+    const handleOnline = () => setIsOnline(true)
+    const handleOffline = () => setIsOnline(false)
+    window.addEventListener('online', handleOnline)
+    window.addEventListener('offline', handleOffline)
+    return () => {
+      window.removeEventListener('online', handleOnline)
+      window.removeEventListener('offline', handleOffline)
+    }
+  }, [])
+
+  const handleManualSync = async () => {
+    if (!isOnline) return
+    setIsSyncing(true)
+    try {
+      const res = await fetch('/api/sync/trigger', { method: 'POST' })
+      if (!res.ok) throw new Error('Sync failed')
+      setLastSynced(new Date())
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setIsSyncing(false)
+    }
+  }
+
   if (!currentUser || !currentTenant) return null
 
   const countryConfig = getCountryConfig(currentTenant.countryCode)
@@ -48,6 +80,29 @@ export default function TopBar() {
       </div>
 
       <div className="flex items-center gap-3">
+        {/* Sync Status Button */}
+        <button
+          onClick={handleManualSync}
+          disabled={!isOnline || isSyncing}
+          className={cn(
+            "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all shadow-sm",
+            isOnline 
+              ? isSyncing 
+                ? "bg-blue-50 text-blue-700 border-blue-200 cursor-wait"
+                : "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100"
+              : "bg-red-50 text-red-700 border-red-200 cursor-not-allowed"
+          )}
+          title={isOnline ? (lastSynced ? `Last synced: ${lastSynced.toLocaleTimeString()}` : "Sync with Cloud") : "Offline - Check Connection"}
+        >
+          {isOnline ? (
+            isSyncing ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Cloud className="w-3.5 h-3.5" />
+          ) : (
+            <CloudOff className="w-3.5 h-3.5" />
+          )}
+          <span className="hidden sm:inline">
+            {!isOnline ? 'Offline' : isSyncing ? 'Syncing...' : 'Online'}
+          </span>
+        </button>
         <button
           onClick={() => setLanguage(isAr ? 'en' : 'ar')}
           className="flex items-center gap-1.5 px-2.5 py-1.5 bg-gray-50 rounded-lg text-xs font-medium text-slate-600 hover:text-emerald-700 transition-all border border-gray-200 hover:border-emerald-300"

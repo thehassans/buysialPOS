@@ -1,16 +1,24 @@
 {
   "name": "buysial-erp",
   "version": "1.0.0",
+  "description": "BuysialPOS Offline App",
+  "author": "Buysial",
   "private": true,
+  "main": "main.js",
   "scripts": {
+    "electron": "wait-on http://localhost:3000 && electron .",
+    "dev:app": "concurrently --kill-others -s first \"npm run dev\" \"npm run electron\"",
+    "start:app": "concurrently --kill-others -s first \"npm run start\" \"npm run electron\"",
     "dev": "next dev",
     "build": "next build",
-    "start": "node server.js",
+    "start": "next start",
     "start:next": "next start",
     "lint": "next lint",
     "postinstall": "prisma generate",
     "db:push": "prisma db push",
-    "db:studio": "prisma studio"
+    "db:studio": "prisma studio",
+    "pack": "npm run build && electron-builder --dir",
+    "dist": "npm run build && electron-builder"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",
@@ -55,7 +63,32 @@
     "zustand": "^4.5.4"
   },
   "devDependencies": {
+    "concurrently": "^9.2.1",
+    "electron": "^40.8.0",
+    "electron-builder": "^26.8.1",
+    "electron-is-dev": "^3.0.1",
     "eslint": "^8",
-    "eslint-config-next": "14.2.5"
+    "eslint-config-next": "14.2.5",
+    "wait-on": "^9.0.4"
+  },
+  "build": {
+    "appId": "com.buysial.pos",
+    "productName": "BuysialPOS",
+    "asar": false,
+    "directories": {
+      "output": "dist-electron"
+    },
+    "files": [
+      ".next/**/*",
+      "public/**/*",
+      "main.js",
+      "server.js",
+      "prisma/**/*",
+      "package.json",
+      "node_modules/**/*"
+    ],
+    "win": {
+      "target": "nsis"
+    }
   }
 }
