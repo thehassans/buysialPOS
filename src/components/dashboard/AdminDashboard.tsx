@@ -124,7 +124,7 @@ export default function AdminDashboard() {
               <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
               <XAxis dataKey="day" tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} />
               <YAxis yAxisId="orders" orientation="left" tick={{ fill: '#64748b', fontSize: 10 }} axisLine={false} />
-              <YAxis yAxisId="revenue" orientation="right" tick={{ fill: '#d97706', fontSize: 10 }} tickFormatter={v => `${currentTenant.currency === 'SAR' ? 'ر.س' : 'د.إ'}${(v/1000).toFixed(0)}k`} axisLine={false} />
+              <YAxis yAxisId="revenue" orientation="right" tick={{ fill: '#d97706', fontSize: 10 }} tickFormatter={v => `${currentTenant.currency} ${(v / 1000).toFixed(0)}k`} axisLine={false} />
               <Tooltip
                 contentStyle={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', fontSize: '12px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }}
                 labelStyle={{ color: '#0f172a' }}
@@ -185,8 +185,8 @@ export default function AdminDashboard() {
                   <div className={cn(
                     'w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0',
                     order.status === 'preparing' ? 'bg-blue-100 text-blue-700' :
-                    order.status === 'ready' ? 'bg-emerald-100 text-emerald-700' :
-                    'bg-amber-100 text-amber-700'
+                      order.status === 'ready' ? 'bg-emerald-100 text-emerald-700' :
+                        'bg-amber-100 text-amber-700'
                   )}>
                     {order.tableNumber}
                   </div>
@@ -199,8 +199,8 @@ export default function AdminDashboard() {
                     <div className={cn(
                       'text-[10px] px-1.5 py-0.5 rounded-full mt-0.5',
                       order.status === 'preparing' ? 'bg-blue-100 text-blue-700' :
-                      order.status === 'ready' ? 'bg-emerald-100 text-emerald-700' :
-                      'bg-amber-100 text-amber-700'
+                        order.status === 'ready' ? 'bg-emerald-100 text-emerald-700' :
+                          'bg-amber-100 text-amber-700'
                     )}>
                       {order.status}
                     </div>

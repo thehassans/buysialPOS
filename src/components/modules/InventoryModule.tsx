@@ -2,10 +2,12 @@
 
 import { useState } from 'react'
 import { MOCK_INVENTORY, MOCK_SUPPLIERS } from '@/lib/mock-data'
+import { useAppStore } from '@/store/app-store'
 import { cn } from '@/lib/utils'
 import { Package, AlertTriangle, Plus, Search, Truck, TrendingDown } from 'lucide-react'
 
 export default function InventoryModule() {
+  const { currentTenant } = useAppStore()
   const [tab, setTab] = useState<'inventory' | 'suppliers'>('inventory')
   const [search, setSearch] = useState('')
 
@@ -98,7 +100,7 @@ export default function InventoryModule() {
                           </div>
                         </td>
                         <td className="px-4 py-3 text-emerald-500 text-sm">{item.minQuantity} {item.unit}</td>
-                        <td className="px-4 py-3 text-emerald-700 text-sm">SAR {item.costPerUnit}</td>
+                        <td className="px-4 py-3 text-emerald-700 text-sm">{currentTenant?.currency || 'SAR'} {item.costPerUnit}</td>
                         <td className="px-4 py-3">
                           <span className={cn(
                             'text-[10px] px-2 py-0.5 rounded-full font-medium border',

@@ -78,17 +78,14 @@ const FEATURES = [
 
 export default function LoginPage() {
   const router = useRouter()
-  const { loginAs } = useAppStore()
-  const [selectedRole, setSelectedRole] = useState<UserRole | null>(null)
+  const { loginWithCredentials } = useAppStore()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
-  const [step, setStep] = useState<'role' | 'credentials'>('role')
   const [error, setError] = useState('')
 
-  const handleRoleSelect = (role: UserRole) => {
-    setSelectedRole(role)
+  const handleDemoClick = (role: UserRole) => {
     const defaults: Record<UserRole, { email: string; password: string }> = {
       super_admin: { email: 'admin@buysial.com', password: 'superadmin123' },
       admin: { email: 'ahmed@alfanar.com', password: 'admin123' },
@@ -99,26 +96,24 @@ export default function LoginPage() {
     }
     setEmail(defaults[role].email)
     setPassword(defaults[role].password)
-    setStep('credentials')
     setError('')
   }
 
   const handleLogin = async () => {
-    if (!selectedRole) return
     if (!email || !password) { setError('Please enter your credentials'); return }
-    const roleConfig = ROLES.find(r => r.role === selectedRole)
-    if (password !== roleConfig?.password) {
-      setError('Incorrect password. Please try again.')
-      return
-    }
     setIsLoading(true)
     setError('')
-    await new Promise(r => setTimeout(r, 900))
-    loginAs(selectedRole)
-    router.push(`/dashboard?role=${selectedRole}`)
-  }
+    await new Promise(r => setTimeout(r, 600))
 
-  const selectedRoleConfig = ROLES.find(r => r.role === selectedRole)
+    const result = loginWithCredentials(email, password)
+
+    if (result.success) {
+      router.push(`/dashboard?role=${result.role}`)
+    } else {
+      setError(result.error || 'Login failed')
+      setIsLoading(false)
+    }
+  }
 
   return (
     <div className="min-h-screen bg-white flex overflow-hidden">
@@ -132,7 +127,7 @@ export default function LoginPage() {
             <svg className="absolute inset-0 w-full h-full opacity-[0.03]" xmlns="http://www.w3.org/2000/svg">
               <defs>
                 <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
-                  <path d="M 40 0 L 0 0 0 40" fill="none" stroke="white" strokeWidth="1"/>
+                  <path d="M 40 0 L 0 0 0 40" fill="none" stroke="white" strokeWidth="1" />
                 </pattern>
               </defs>
               <rect width="100%" height="100%" fill="url(#grid)" />
@@ -202,146 +197,95 @@ export default function LoginPage() {
             <span className="text-gray-900 font-black text-lg">Buysial ERP</span>
           </div>
 
-          {step === 'role' ? (
-            <>
-              <div className="mb-8">
-                <h2 className="text-3xl font-black text-gray-900 mb-2">Welcome back</h2>
-                <p className="text-slate-500">Select your role to continue</p>
+          <div className="mb-8">
+            <h2 className="text-3xl font-black text-gray-900 mb-1 tracking-tight">Sign in</h2>
+            <p className="text-slate-500 text-sm font-medium">Verify your access credentials</p>
+          </div>
+
+          {/* Form */}
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1.5">Email address</label>
+              <input
+                type="email"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 text-gray-900 text-sm placeholder-slate-400 focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500/10 transition-all bg-slate-50 focus:bg-white"
+                placeholder="your@email.com"
+              />
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-sm font-semibold text-gray-700">Password</label>
+                <button className="text-xs text-blue-600 hover:text-blue-700 font-bold transition-colors">Forgot password?</button>
               </div>
-
-              {/* Role Grid */}
-              <div className="grid grid-cols-2 gap-3 mb-8">
-                {ROLES.map(({ role, label, icon: Icon, desc, gradient, color }) => (
-                  <button
-                    key={role}
-                    onClick={() => handleRoleSelect(role)}
-                    className={cn(
-                      'group relative p-4 rounded-2xl border-2 text-left transition-all duration-200',
-                      'hover:scale-[1.02] hover:shadow-lg',
-                      gradient
-                    )}
-                  >
-                    <div className={cn('w-10 h-10 rounded-xl bg-gradient-to-br flex items-center justify-center mb-3 shadow-sm', color)}>
-                      <Icon className="w-5 h-5 text-white" />
-                    </div>
-                    <div className="text-gray-900 text-sm font-bold">{label}</div>
-                    <div className="text-slate-500 text-xs mt-0.5">{desc}</div>
-                    <ArrowRight className="absolute top-4 right-4 w-3.5 h-3.5 text-slate-400 group-hover:text-gray-600 transition-transform group-hover:translate-x-0.5" />
-                  </button>
-                ))}
-              </div>
-
-              <p className="text-center text-slate-400 text-xs">
-                Demo mode — select any role to explore the platform
-              </p>
-            </>
-          ) : (
-            <>
-              {/* Back */}
-              <button
-                onClick={() => { setStep('role'); setSelectedRole(null); setError('') }}
-                className="flex items-center gap-2 text-slate-500 hover:text-gray-700 text-sm mb-6 transition-colors"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
-                Back to roles
-              </button>
-
-              {/* Selected role badge */}
-              {selectedRoleConfig && (
-                <div className={cn('flex items-center gap-3 p-3 rounded-xl mb-8 border', selectedRoleConfig.gradient)}>
-                  <div className={cn('w-9 h-9 rounded-xl bg-gradient-to-br flex items-center justify-center shadow-sm', selectedRoleConfig.color)}>
-                    <selectedRoleConfig.icon className="w-4 h-4 text-white" />
-                  </div>
-                  <div>
-                    <div className="text-gray-900 text-sm font-bold">{selectedRoleConfig.label}</div>
-                    <div className="text-slate-500 text-xs">{selectedRoleConfig.desc}</div>
-                  </div>
-                  <CheckCircle className="w-5 h-5 text-blue-600 ml-auto drop-shadow-sm" />
-                </div>
-              )}
-
-              <div className="mb-8">
-                <h2 className="text-3xl font-black text-gray-900 mb-1 tracking-tight">Sign in</h2>
-                <p className="text-slate-500 text-sm font-medium">Verify your access credentials</p>
-              </div>
-
-              {/* Form */}
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">Email address</label>
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={e => setEmail(e.target.value)}
-                    className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 text-gray-900 text-sm placeholder-slate-400 focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500/10 transition-all bg-slate-50 focus:bg-white"
-                    placeholder="your@email.com"
-                  />
-                </div>
-
-                <div>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <label className="block text-sm font-semibold text-gray-700">Password</label>
-                    <button className="text-xs text-blue-600 hover:text-blue-700 font-bold transition-colors">Forgot password?</button>
-                  </div>
-                  <div className="relative">
-                    <input
-                      type={showPassword ? 'text' : 'password'}
-                      value={password}
-                      onChange={e => setPassword(e.target.value)}
-                      onKeyDown={e => e.key === 'Enter' && handleLogin()}
-                      className="w-full px-4 py-3 pr-12 rounded-xl border-2 border-slate-200 text-gray-900 text-sm placeholder-slate-400 focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500/10 transition-all bg-slate-50 focus:bg-white"
-                      placeholder="••••••••"
-                    />
-                    <button
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-blue-600 transition-colors p-1"
-                    >
-                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
-                  </div>
-                </div>
-
-                {error && (
-                  <div className="flex items-center gap-2 px-4 py-2.5 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm">
-                    <div className="w-1.5 h-1.5 rounded-full bg-red-500 flex-shrink-0" />
-                    {error}
-                  </div>
-                )}
-
+              <div className="relative">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && handleLogin()}
+                  className="w-full px-4 py-3 pr-12 rounded-xl border-2 border-slate-200 text-gray-900 text-sm placeholder-slate-400 focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500/10 transition-all bg-slate-50 focus:bg-white"
+                  placeholder="••••••••"
+                />
                 <button
-                  onClick={handleLogin}
-                  disabled={isLoading}
-                  className={cn(
-                    'w-full py-3.5 rounded-xl font-bold text-base transition-all duration-300 flex items-center justify-center gap-2',
-                    isLoading
-                      ? 'bg-blue-400 text-white cursor-not-allowed'
-                      : 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 hover:-translate-y-0.5 active:translate-y-0'
-                  )}
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-blue-600 transition-colors p-1"
                 >
-                  {isLoading ? (
-                    <>
-                      <svg className="animate-spin w-4 h-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
-                      </svg>
-                      Signing in...
-                    </>
-                  ) : (
-                    <>
-                      Sign in to Dashboard
-                      <ArrowRight className="w-4 h-4" />
-                    </>
-                  )}
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
+            </div>
 
-              {/* Security note */}
-              <div className="flex items-center justify-center gap-2 mt-6 text-slate-400">
-                <Lock className="w-3.5 h-3.5" />
-                <span className="text-xs">Secured with end-to-end encryption</span>
+            {error && (
+              <div className="flex items-center gap-2 px-4 py-2.5 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm">
+                <div className="w-1.5 h-1.5 rounded-full bg-red-500 flex-shrink-0" />
+                {error}
               </div>
-            </>
-          )}
+            )}
+
+            <button
+              onClick={handleLogin}
+              disabled={isLoading}
+              className={cn(
+                'w-full py-3.5 rounded-xl font-bold text-base transition-all duration-300 flex items-center justify-center gap-2',
+                isLoading
+                  ? 'bg-blue-400 text-white cursor-not-allowed'
+                  : 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 hover:-translate-y-0.5 active:translate-y-0'
+              )}
+            >
+              {isLoading ? (
+                <>
+                  <svg className="animate-spin w-4 h-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                  Signing in...
+                </>
+              ) : (
+                <>
+                  Sign in to Dashboard
+                  <ArrowRight className="w-4 h-4" />
+                </>
+              )}
+            </button>
+          </div>
+
+          <div className="mt-8 border-t border-gray-100 pt-6">
+            <p className="text-xs text-slate-400 font-semibold mb-3 uppercase tracking-wider">Demo Quick Access</p>
+            <div className="flex flex-wrap gap-2">
+              {ROLES.map(({ role, label }) => (
+                <button
+                  key={role}
+                  onClick={() => handleDemoClick(role)}
+                  className="px-3 py-1.5 bg-gray-50 hover:bg-gray-100 text-slate-600 rounded-lg text-xs font-semibold border border-gray-200 transition-colors"
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
 
           {/* Country flags */}
           <div className="mt-10 pt-6 border-t border-gray-100 flex items-center justify-center gap-4">

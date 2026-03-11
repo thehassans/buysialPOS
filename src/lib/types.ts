@@ -46,6 +46,7 @@ export interface User {
   tenantId: string
   name: string
   email: string
+  password?: string
   role: UserRole
   language: Language
   avatar?: string

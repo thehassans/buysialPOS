@@ -35,8 +35,7 @@ const selectCls = "w-full px-3 py-2 rounded-xl border border-gray-200 text-sm te
 
 export default function TenantsModule() {
   const router = useRouter()
-  const { loginAs } = useAppStore()
-  const [tenants, setTenants] = useState<Tenant[]>(MOCK_TENANTS)
+  const { tenants, addTenant, updateTenant, loginAs } = useAppStore()
   const [search, setSearch] = useState('')
   const [viewTenant, setViewTenant] = useState<Tenant | null>(null)
   const [showForm, setShowForm] = useState(false)
@@ -78,12 +77,11 @@ export default function TenantsModule() {
   const handleSave = () => {
     if (!form.name.trim() || !form.email.trim()) return
     if (editingId) {
-      setTenants(prev => prev.map(t => t.id === editingId ? {
-        ...t,
+      updateTenant(editingId, {
         ...form,
         vatRate: Number(form.vatRate),
         validUntil: form.validUntil ? new Date(form.validUntil) : undefined
-      } : t))
+      })
     } else {
       const newTenant: Tenant = {
         id: `t${Date.now()}`,
@@ -94,14 +92,15 @@ export default function TenantsModule() {
         validUntil: form.validUntil ? new Date(form.validUntil) : undefined,
         invoiceFooter: 'Thank you for dining with us!',
       }
-      setTenants(prev => [newTenant, ...prev])
+      addTenant(newTenant)
     }
     setShowForm(false)
     setEditingId(null)
   }
 
   const toggleStatus = (id: string) => {
-    setTenants(prev => prev.map(t => t.id === id ? { ...t, isActive: !t.isActive } : t))
+    const t = tenants.find(x => x.id === id)
+    if (t) updateTenant(id, { isActive: !t.isActive })
     if (viewTenant?.id === id) setViewTenant(v => v ? { ...v, isActive: !v.isActive } : v)
   }
 

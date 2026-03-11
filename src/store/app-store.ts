@@ -10,6 +10,7 @@ interface AppState {
   language: Language
   orders: Order[]
   users: User[]
+  tenants: Tenant[]
   menuItems: MenuItem[]
   tables: Table[]
   activeView: string
@@ -23,11 +24,14 @@ interface AppState {
   setActiveView: (view: string) => void
   toggleSidebar: () => void
   loginAs: (role: UserRole, tenantId?: string) => void
+  loginWithCredentials: (email: string, pass: string) => { success: boolean; error?: string; role?: UserRole }
   logout: () => void
   setEditingOrder: (order: Order | null) => void
   addOrder: (order: Order) => void
   updateOrder: (id: string, updates: Partial<Order>) => void
   updateOrderItemStatus: (orderId: string, itemId: string, status: OrderItem['status']) => void
+  addTenant: (tenant: Tenant) => void
+  updateTenant: (id: string, updates: Partial<Tenant>) => void
   addUser: (user: User) => void
   updateUser: (id: string, updates: Partial<User>) => void
   deleteUser: (id: string) => void
@@ -48,6 +52,7 @@ export const useAppStore = create<AppState>()(
       language: 'en',
       orders: MOCK_ORDERS,
       users: MOCK_USERS,
+      tenants: MOCK_TENANTS,
       menuItems: MOCK_MENU_ITEMS,
       tables: MOCK_TABLES,
       activeView: 'dashboard',
@@ -62,12 +67,35 @@ export const useAppStore = create<AppState>()(
       toggleSidebar: () => set((state) => ({ sidebarOpen: !state.sidebarOpen })),
 
       loginAs: (role, tenantId = 't1') => {
-        const user = MOCK_USERS.find(u => u.role === role && u.tenantId === tenantId) || MOCK_USERS[0]
-        const tenant = MOCK_TENANTS.find(t => t.id === tenantId) || MOCK_TENANTS[0]
+        const user = get().users.find(u => u.role === role && u.tenantId === tenantId) || get().users[0]
+        const tenant = get().tenants.find(t => t.id === tenantId) || get().tenants[0]
         const defaultView: Record<string, string> = {
           waiter: 'pos', chef: 'kds', cashier: 'pos',
         }
         set({ currentUser: user, currentTenant: tenant, language: 'en', activeView: defaultView[role] || 'dashboard' })
+      },
+
+      loginWithCredentials: (email, pass) => {
+        if (email === 'admin@buysial.com' && pass === 'superadmin123') {
+          const u = get().users.find(x => x.role === 'super_admin') || get().users[0]
+          set({ currentUser: u, currentTenant: get().tenants[0], language: 'en', activeView: 'dashboard' })
+          return { success: true, role: 'super_admin' }
+        }
+        const tenant = get().tenants.find(t => t.email.toLowerCase() === email.toLowerCase())
+        if (tenant && tenant.adminPassword === pass) {
+          const adminUser = get().users.find(x => x.tenantId === tenant.id && x.role === 'admin')
+            || { id: `u-${Date.now()}`, tenantId: tenant.id, name: tenant.name + ' Admin', email, role: 'admin', isActive: true, language: 'en', createdAt: new Date() } as User
+          set({ currentUser: adminUser, currentTenant: tenant, language: 'en', activeView: 'dashboard' })
+          return { success: true, role: 'admin' }
+        }
+        const user = get().users.find(u => u.email.toLowerCase() === email.toLowerCase() && (u.password === pass || pass === u.role + '123'))
+        if (user) {
+          const uTenant = get().tenants.find(t => t.id === user.tenantId) || get().tenants[0]
+          const dv: Record<string, string> = { waiter: 'pos', chef: 'kds', cashier: 'pos' }
+          set({ currentUser: user, currentTenant: uTenant, language: 'en', activeView: dv[user.role] || 'dashboard' })
+          return { success: true, role: user.role }
+        }
+        return { success: false, error: 'Invalid email or password' }
       },
 
       logout: () => set({ currentUser: null, currentTenant: null }),
@@ -106,6 +134,9 @@ export const useAppStore = create<AppState>()(
             .catch(e => console.error('DB sync updateOrderItemStatus:', e))
         }
       },
+
+      addTenant: (tenant) => set(s => ({ tenants: [tenant, ...s.tenants] })),
+      updateTenant: (id, updates) => set(s => ({ tenants: s.tenants.map(t => t.id === id ? { ...t, ...updates } : t) })),
 
       addUser: (user) => {
         set((state) => ({ users: [...state.users, user] }))
@@ -183,6 +214,7 @@ export const useAppStore = create<AppState>()(
         activeView: state.activeView,
         orders: state.orders,
         users: state.users,
+        tenants: state.tenants,
         menuItems: state.menuItems,
         tables: state.tables,
       }),

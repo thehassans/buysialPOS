@@ -90,7 +90,7 @@ export default function HRModule() {
         {[
           { label: 'Total Staff', value: tenantUsers.length, icon: Users, color: 'text-blue-600' },
           { label: 'Present Today', value: clockedIn.size, icon: CheckCircle, color: 'text-emerald-600' },
-          { label: 'Monthly Payroll', value: 'SAR 42,800', icon: DollarSign, color: 'text-amber-600' },
+          { label: 'Monthly Payroll', value: `${currentTenant?.currency || 'SAR'} 42,800`, icon: DollarSign, color: 'text-amber-600' },
         ].map(stat => (
           <div key={stat.label} className="bg-white rounded-2xl shadow-sm p-4 border border-gray-200 flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center">
@@ -245,10 +245,10 @@ export default function HRModule() {
                       </td>
                       <td className="px-4 py-3 text-emerald-500 text-sm">{ROLE_LABELS[user.role]}</td>
                       <td className="px-4 py-3 text-gray-900 text-sm">{hours}h</td>
-                      <td className="px-4 py-3 text-emerald-700 text-sm">SAR {user.hourlyRate}</td>
-                      <td className="px-4 py-3 text-gray-900 font-medium text-sm">SAR {gross.toLocaleString()}</td>
-                      <td className="px-4 py-3 text-red-600 text-sm">SAR {deductions.toLocaleString()}</td>
-                      <td className="px-4 py-3 text-emerald-700 font-bold text-sm">SAR {net.toLocaleString()}</td>
+                      <td className="px-4 py-3 text-emerald-700 text-sm">{currentTenant?.currency || 'SAR'} {user.hourlyRate}</td>
+                      <td className="px-4 py-3 text-gray-900 font-medium text-sm">{currentTenant?.currency || 'SAR'} {gross.toLocaleString()}</td>
+                      <td className="px-4 py-3 text-red-600 text-sm">{currentTenant?.currency || 'SAR'} {deductions.toLocaleString()}</td>
+                      <td className="px-4 py-3 text-emerald-700 font-bold text-sm">{currentTenant?.currency || 'SAR'} {net.toLocaleString()}</td>
                     </tr>
                   )
                 })}
