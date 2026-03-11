@@ -308,25 +308,37 @@ export default function TenantsModule() {
             </div>
 
             <div className="p-8 space-y-4 max-h-[70vh] overflow-y-auto scrollbar-thin">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                <Field label="Restaurant Name *">
-                  <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} className={inputCls} placeholder="Al Fanar Restaurant" />
-                </Field>
-                <Field label="Slug (URL identifier)">
-                  <input value={form.slug} onChange={e => setForm(f => ({ ...f, slug: e.target.value }))} className={inputCls} placeholder="al-fanar" />
-                </Field>
-                <Field label="Email *">
-                  <input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} className={inputCls} placeholder="info@restaurant.com" />
-                </Field>
-                <Field label="Phone">
-                  <input value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} className={inputCls} placeholder="+966-11-123-4567" />
-                </Field>
-                <Field label="Address">
-                  <input value={form.address} onChange={e => setForm(f => ({ ...f, address: e.target.value }))} className={inputCls} placeholder="King Fahd Road, Riyadh, KSA" />
-                </Field>
-                <Field label="Admin Password">
-                  <input type="password" value={form.adminPassword} onChange={e => setForm(f => ({ ...f, adminPassword: e.target.value }))} className={inputCls} placeholder="Leave blank for none" />
-                </Field>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4">
+                <div className="col-span-1 sm:col-span-1 lg:col-span-3">
+                  <Field label="Restaurant Name *">
+                    <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} className={inputCls} placeholder="Al Fanar Restaurant" />
+                  </Field>
+                </div>
+                <div className="col-span-1 sm:col-span-1 lg:col-span-3">
+                  <Field label="Slug (URL identifier)">
+                    <input value={form.slug} onChange={e => setForm(f => ({ ...f, slug: e.target.value }))} className={inputCls} placeholder="al-fanar" />
+                  </Field>
+                </div>
+                <div className="col-span-1 sm:col-span-1 lg:col-span-3">
+                  <Field label="Email *">
+                    <input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} className={inputCls} placeholder="info@restaurant.com" />
+                  </Field>
+                </div>
+                <div className="col-span-1 sm:col-span-1 lg:col-span-3">
+                  <Field label="Phone">
+                    <input value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} className={inputCls} placeholder="+966-11-123-4567" />
+                  </Field>
+                </div>
+                <div className="col-span-1 sm:col-span-2 lg:col-span-4">
+                  <Field label="Address">
+                    <input value={form.address} onChange={e => setForm(f => ({ ...f, address: e.target.value }))} className={inputCls} placeholder="King Fahd Road, Riyadh, KSA" />
+                  </Field>
+                </div>
+                <div className="col-span-1 sm:col-span-2 lg:col-span-2">
+                  <Field label="Admin Password">
+                    <input type="password" value={form.adminPassword} onChange={e => setForm(f => ({ ...f, adminPassword: e.target.value }))} className={inputCls} placeholder="Leave blank for none" />
+                  </Field>
+                </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
