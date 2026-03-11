@@ -308,7 +308,7 @@ export default function TenantsModule() {
             </div>
 
             <div className="p-8 space-y-4 max-h-[70vh] overflow-y-auto scrollbar-thin">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <Field label="Restaurant Name *">
                   <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} className={inputCls} placeholder="Al Fanar Restaurant" />
                 </Field>
