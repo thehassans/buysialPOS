@@ -114,7 +114,7 @@ export default function WaiterOrders() {
       </div>
 
       {/* Summary stats */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {[
           { label: 'Active Orders', value: activeCount, color: 'text-blue-700', bg: 'bg-blue-50 border-blue-200', icon: Flame },
           { label: 'Ready to Serve', value: readyCount, color: 'text-emerald-700', bg: 'bg-emerald-50 border-emerald-200', icon: CheckCircle2 },
@@ -166,7 +166,7 @@ export default function WaiterOrders() {
           <p className="text-slate-400 text-sm mt-1">Go to POS to create a new order</p>
         </div>
       ) : (
-        <div className="grid gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {myOrders.map(order => {
             const cfg = STATUS_CONFIG[order.status] || STATUS_CONFIG.pending
             const Icon = cfg.icon

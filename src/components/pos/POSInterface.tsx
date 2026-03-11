@@ -186,7 +186,7 @@ export default function POSInterface() {
   }
 
   return (
-    <div className="flex gap-4 h-[calc(100vh-8rem)]">
+    <div className="flex flex-col lg:flex-row gap-4 h-[calc(100vh-8rem)]">
       {/* Left: Menu */}
       <div className="flex-1 flex flex-col gap-3 overflow-hidden">
 
@@ -305,7 +305,7 @@ export default function POSInterface() {
       </div>
 
       {/* Right: Order Panel */}
-      <div className="w-80 flex flex-col bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+      <div className="w-full lg:w-80 flex flex-col bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex-shrink-0">
         {/* Order Header */}
         <div className={cn('p-4 border-b border-gray-100', orderType === 'dine_in' ? 'bg-blue-50' : 'bg-orange-50')}>
           <div className="flex items-center justify-between">

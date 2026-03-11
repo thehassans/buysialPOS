@@ -98,7 +98,7 @@ export default function AdminDashboard() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {statsCards.map(card => (
           <div key={card.label} className={cn('bg-white rounded-2xl p-5 border shadow-sm', card.bg)}>
             <div className="flex items-start justify-between mb-3">
@@ -115,7 +115,7 @@ export default function AdminDashboard() {
         ))}
       </div>
 
-      <div className="grid lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Weekly Revenue */}
         <div className="lg:col-span-2 bg-white rounded-2xl p-6 border border-gray-200 shadow-sm">
           <h3 className="text-gray-900 font-semibold mb-4">Weekly Performance</h3>
@@ -167,7 +167,7 @@ export default function AdminDashboard() {
       </div>
 
       {/* Active Orders & Inventory Alerts */}
-      <div className="grid lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Active Orders */}
         <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm">
           <div className="flex items-center justify-between mb-4">

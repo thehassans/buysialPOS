@@ -79,8 +79,8 @@ export default function TenantsModule() {
     if (!form.name.trim() || !form.email.trim()) return
     if (editingId) {
       setTenants(prev => prev.map(t => t.id === editingId ? {
-        ...t, 
-        ...form, 
+        ...t,
+        ...form,
         vatRate: Number(form.vatRate),
         validUntil: form.validUntil ? new Date(form.validUntil) : undefined
       } : t))
@@ -118,7 +118,7 @@ export default function TenantsModule() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
         {[
           { label: 'Total Tenants', value: tenants.length, color: 'text-gray-900' },
           { label: 'Active', value: tenants.filter(t => t.isActive).length, color: 'text-emerald-600' },
@@ -174,8 +174,8 @@ export default function TenantsModule() {
                     <span className={cn(
                       'text-[10px] px-2 py-0.5 rounded-full font-semibold border inline-flex items-center gap-1',
                       tenant.subscriptionPlan === 'enterprise' ? 'bg-amber-50 text-amber-700 border-amber-200' :
-                      tenant.subscriptionPlan === 'professional' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
-                      'bg-blue-50 text-blue-700 border-blue-200'
+                        tenant.subscriptionPlan === 'professional' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                          'bg-blue-50 text-blue-700 border-blue-200'
                     )}>
                       {tenant.subscriptionPlan === 'enterprise' && <Crown className="w-2.5 h-2.5" />}
                       {tenant.subscriptionPlan}
@@ -250,7 +250,7 @@ export default function TenantsModule() {
               </button>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {[
                 { label: 'Email', value: viewTenant.email },
                 { label: 'Phone', value: viewTenant.phone },
@@ -308,8 +308,8 @@ export default function TenantsModule() {
               </button>
             </div>
 
-            <div className="p-8 space-y-4 max-h-[70vh] overflow-y-auto">
-              <div className="grid grid-cols-2 gap-4">
+            <div className="p-8 space-y-4 max-h-[70vh] overflow-y-auto scrollbar-thin">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Field label="Restaurant Name *">
                   <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} className={inputCls} placeholder="Al Fanar Restaurant" />
                 </Field>
@@ -330,7 +330,7 @@ export default function TenantsModule() {
                 </Field>
               </div>
 
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <Field label="Country">
                   <select value={form.countryCode} onChange={e => handleCountryChange(e.target.value as CountryCode)} className={selectCls}>
                     {COUNTRY_OPTIONS.map(o => <option key={o.code} value={o.code}>{o.label}</option>)}
@@ -347,7 +347,7 @@ export default function TenantsModule() {
                 </Field>
               </div>
 
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <Field label="Subscription Plan">
                   <select value={form.subscriptionPlan} onChange={e => setForm(f => ({ ...f, subscriptionPlan: e.target.value as SubscriptionPlan }))} className={selectCls}>
                     {PLAN_OPTIONS.map(p => <option key={p} value={p}>{p.charAt(0).toUpperCase() + p.slice(1)}</option>)}

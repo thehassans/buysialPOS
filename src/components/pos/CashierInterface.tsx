@@ -64,9 +64,9 @@ export default function CashierInterface() {
   }
 
   return (
-    <div className="flex gap-4 h-[calc(100vh-8rem)]">
+    <div className="flex flex-col lg:flex-row gap-4 h-[calc(100vh-8rem)]">
       {/* Orders Queue */}
-      <div className="w-80 flex flex-col bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+      <div className="w-full lg:w-80 flex flex-col bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden flex-shrink-0">
         <div className="p-4 border-b border-gray-100">
           <h3 className="text-gray-900 font-semibold text-sm flex items-center gap-2">
             <Receipt className="w-4 h-4 text-emerald-600" />

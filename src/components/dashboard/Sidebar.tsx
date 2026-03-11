@@ -61,13 +61,27 @@ export default function Sidebar() {
   const items = NAV_ITEMS[currentUser.role] || NAV_ITEMS.admin
 
   return (
-    <aside className={cn(
-      'flex flex-col bg-white transition-all duration-300 relative z-20 shadow-sm',
-      isAr ? 'border-l border-gray-200' : 'border-r border-gray-200',
-      sidebarOpen ? 'w-60' : 'w-16'
-    )}>
-      {/* Logo */}
-      <div className="flex items-center gap-3 p-4 border-b border-gray-100 h-16">
+    <>
+      {/* Mobile Overlay */}
+      {sidebarOpen && (
+        <div 
+          className="fixed inset-0 z-30 bg-gray-900/60 backdrop-blur-sm md:hidden" 
+          onClick={toggleSidebar} 
+        />
+      )}
+      
+      <aside className={cn(
+        'flex flex-col bg-white transition-all duration-300 z-40 shadow-2xl md:shadow-sm h-full',
+        isAr ? 'md:border-l border-gray-200' : 'md:border-r border-gray-200',
+        'fixed md:relative inset-y-0',
+        sidebarOpen 
+          ? 'translate-x-0 w-64 md:w-60' 
+          : isAr 
+            ? 'translate-x-full md:translate-x-0 md:w-16' 
+            : '-translate-x-full md:translate-x-0 md:w-16'
+      )}>
+        {/* Logo */}
+        <div className="flex items-center gap-3 p-4 border-b border-gray-100 h-16">
         <Image src="/logo.png" alt="BuysialPOS" width={32} height={32} className="rounded-lg object-contain flex-shrink-0" />
         {sidebarOpen && (
           <div className="overflow-hidden">
@@ -134,5 +148,6 @@ export default function Sidebar() {
         }
       </button>
     </aside>
+    </>
   )
 }
