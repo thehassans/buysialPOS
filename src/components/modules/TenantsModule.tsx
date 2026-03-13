@@ -10,7 +10,7 @@ const EMPTY_FORM = {
   name: '', slug: '', email: '', phone: '', address: '',
   countryCode: 'KSA' as CountryCode, currency: 'SAR' as Currency,
   vatRate: 0.15, vatNumber: '', subscriptionPlan: 'starter' as SubscriptionPlan,
-  isActive: true, primaryColor: '#059669',
+  isActive: true, primaryColor: '#059669', adminPassword: '',
 }
 
 const COUNTRY_OPTIONS: { code: CountryCode; label: string; currency: Currency; vat: number }[] = [
@@ -66,7 +66,7 @@ export default function TenantsModule() {
       address: t.address, countryCode: t.countryCode, currency: t.currency,
       vatRate: t.vatRate, vatNumber: t.vatNumber || '',
       subscriptionPlan: t.subscriptionPlan, isActive: t.isActive,
-      primaryColor: t.primaryColor || '#059669',
+      primaryColor: t.primaryColor || '#059669', adminPassword: t.adminPassword || '',
     })
     setViewTenant(null)
     setShowForm(true)
@@ -79,20 +79,21 @@ export default function TenantsModule() {
 
   const handleSave = () => {
     if (!form.name.trim() || !form.email.trim()) return
+    const adminPassword = form.adminPassword.trim() || `${form.name.split(' ')[0].toLowerCase()}${Math.random().toString(36).slice(2, 7)}`
     if (editingId) {
-      updateTenant(editingId, { ...form, vatRate: Number(form.vatRate) })
+      updateTenant(editingId, { ...form, adminPassword, vatRate: Number(form.vatRate) })
     } else {
       const tenantId = `t${Date.now()}`
       const newTenant: Tenant = {
         id: tenantId,
         ...form,
+        adminPassword,
         vatRate: Number(form.vatRate),
         slug: form.slug || form.name.toLowerCase().replace(/\s+/g, '-'),
         createdAt: new Date(),
         invoiceFooter: 'Thank you for dining with us!',
       }
       addTenant(newTenant)
-      const adminPassword = `${form.name.split(' ')[0].toLowerCase()}${Math.random().toString(36).slice(2, 7)}`
       const adminUser: User = {
         id: `u-${Date.now()}`, tenantId,
         name: `${form.name} Admin`,
@@ -341,6 +342,15 @@ export default function TenantsModule() {
                 </Field>
                 <Field label="Address">
                   <input value={form.address} onChange={e => setForm(f => ({ ...f, address: e.target.value }))} className={inputCls} placeholder="King Fahd Road, Riyadh, KSA" />
+                </Field>
+                <Field label="Admin Password">
+                  <input
+                    type="password"
+                    value={form.adminPassword}
+                    onChange={e => setForm(f => ({ ...f, adminPassword: e.target.value }))}
+                    className={inputCls}
+                    placeholder={editingId ? 'Leave blank to keep/update current password' : 'Set tenant admin password'}
+                  />
                 </Field>
               </div>
 
