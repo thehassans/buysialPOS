@@ -59,6 +59,12 @@ export default function Sidebar() {
 
   const isAr = language === 'ar'
   const items = NAV_ITEMS[currentUser.role] || NAV_ITEMS.admin
+  const handleNavClick = (view: string) => {
+    setActiveView(view)
+    if (typeof window !== 'undefined' && window.innerWidth < 768 && sidebarOpen) {
+      toggleSidebar()
+    }
+  }
 
   return (
     <>
@@ -71,11 +77,11 @@ export default function Sidebar() {
       )}
       
       <aside className={cn(
-        'flex flex-col bg-white transition-all duration-300 z-40 shadow-2xl md:shadow-sm h-full',
+        'flex flex-col bg-white transition-all duration-300 z-40 shadow-2xl md:shadow-sm h-screen',
         isAr ? 'md:border-l border-gray-200' : 'md:border-r border-gray-200',
         'fixed md:relative inset-y-0',
         sidebarOpen 
-          ? 'translate-x-0 w-64 md:w-60' 
+          ? 'translate-x-0 w-[82vw] max-w-72 md:w-60' 
           : isAr 
             ? 'translate-x-full md:translate-x-0 md:w-16' 
             : '-translate-x-full md:translate-x-0 md:w-16'
@@ -96,7 +102,7 @@ export default function Sidebar() {
         {items.map(item => (
           <button
             key={item.id}
-            onClick={() => setActiveView(item.id)}
+            onClick={() => handleNavClick(item.id)}
             className={cn(
               'w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all group',
               activeView === item.id
@@ -138,7 +144,7 @@ export default function Sidebar() {
       <button
         onClick={toggleSidebar}
         className={cn(
-          'absolute top-20 w-6 h-6 rounded-full bg-white border border-gray-200 shadow flex items-center justify-center text-slate-500 hover:text-emerald-600 z-30',
+          'hidden md:flex absolute top-20 w-6 h-6 rounded-full bg-white border border-gray-200 shadow items-center justify-center text-slate-500 hover:text-emerald-600 z-30',
           isAr ? '-left-3' : '-right-3'
         )}
       >

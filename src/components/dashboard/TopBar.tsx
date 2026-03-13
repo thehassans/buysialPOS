@@ -77,15 +77,15 @@ export default function TopBar() {
   }
 
   return (
-    <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6 flex-shrink-0 shadow-sm">
-      <div className="flex items-center gap-3 md:gap-4">
+    <header className="min-h-16 bg-white border-b border-gray-200 flex flex-wrap items-center justify-between gap-3 px-3 sm:px-6 py-3 sm:py-2 flex-shrink-0 shadow-sm">
+      <div className="flex items-center gap-3 md:gap-4 min-w-0 flex-1">
         <button onClick={toggleSidebar} className="md:hidden p-1.5 -ml-2 text-slate-500 hover:text-emerald-600 rounded-lg hover:bg-gray-100 transition-colors">
           <Menu className="w-5 h-5" />
         </button>
         <button onClick={() => router.push('/')} className="hidden md:block text-slate-400 hover:text-emerald-600 transition-colors">
           {isAr ? <ArrowRight className="w-4 h-4" /> : <ArrowLeft className="w-4 h-4" />}
         </button>
-        <div>
+        <div className="min-w-0">
           <h1 className="text-gray-900 font-bold text-sm md:text-base truncate max-w-[120px] sm:max-w-xs">{VIEW_LABELS[activeView] || 'Dashboard'}</h1>
           <div className="flex items-center gap-2 text-xs text-slate-500">
             <span className="truncate max-w-[80px] sm:max-w-[150px]">{currentTenant.name}</span>
@@ -100,7 +100,7 @@ export default function TopBar() {
         </div>
       </div>
 
-      <div className="flex items-center gap-3">
+      <div className="flex items-center flex-wrap justify-end gap-2 sm:gap-3 w-full sm:w-auto">
         {/* Sync Status Button */}
         <button
           onClick={handleManualSync}
@@ -118,7 +118,7 @@ export default function TopBar() {
           title={!isOnline ? 'Offline — changes queued locally' : lastSynced ? `Last synced: ${lastSynced.toLocaleTimeString()}` : 'Sync with cloud'}
         >
           {!isOnline ? <CloudOff className="w-3.5 h-3.5" /> : isSyncing ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Cloud className="w-3.5 h-3.5" />}
-          <span className="hidden sm:inline">
+          <span className="hidden md:inline">
             {!isOnline ? 'Offline' : isSyncing ? 'Syncing…' : pendingCount > 0 ? `${pendingCount} pending` : 'Online'}
           </span>
           {pendingCount > 0 && isOnline && !isSyncing && (
@@ -135,18 +135,18 @@ export default function TopBar() {
           {isAr ? 'EN' : 'عربي'}
         </button>
 
-        <div className="relative">
+        <div className="relative hidden sm:block">
           <button className="w-8 h-8 bg-gray-50 rounded-lg flex items-center justify-center text-slate-500 hover:text-emerald-700 transition-colors border border-gray-200">
             <Bell className="w-4 h-4" />
           </button>
           <div className={cn('absolute -top-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center text-white text-[9px] font-bold', isAr ? '-left-1' : '-right-1')}>3</div>
         </div>
 
-        <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 rounded-lg border border-gray-200">
+        <div className="flex items-center gap-2 px-2.5 sm:px-3 py-1.5 bg-gray-50 rounded-lg border border-gray-200 min-w-0">
           <div className="w-5 h-5 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 text-[10px] font-bold">
             {currentUser.name.charAt(0)}
           </div>
-          <div className="hidden sm:block">
+          <div className="hidden md:block">
             <div className="text-xs font-medium text-gray-900">{currentUser.name.split(' ')[0]}</div>
           </div>
           <span className={cn('text-[10px] px-1.5 py-0.5 rounded-md border font-medium', ROLE_COLORS[currentUser.role])}>

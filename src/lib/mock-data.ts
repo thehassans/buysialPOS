@@ -156,7 +156,6 @@ export const MOCK_TENANTS: Tenant[] = [
 ]
 
 export const MOCK_USERS: User[] = [
-  { id: 'u0', tenantId: 't1', name: 'Platform Admin', email: 'admin@buysial.com', password: 'superadmin123', role: 'super_admin', language: 'en', isActive: true, hourlyRate: 0, createdAt: new Date('2022-01-01') },
   { id: 'u1', tenantId: 't1', name: 'Ahmed Al-Rashidi', email: 'ahmed@alfanar.com', password: 'admin123', role: 'admin', language: 'ar', isActive: true, hourlyRate: 0, createdAt: new Date('2023-01-15') },
   { id: 'u2', tenantId: 't1', name: 'Sarah Johnson', email: 'sarah@alfanar.com', password: 'manager123', role: 'manager', language: 'en', isActive: true, hourlyRate: 45, createdAt: new Date('2023-02-01') },
   { id: 'u3', tenantId: 't1', name: 'Mohammed Al-Otaibi', email: 'mo@alfanar.com', password: 'waiter123', role: 'waiter', language: 'ar', isActive: true, hourlyRate: 25, createdAt: new Date('2023-02-15') },
@@ -276,10 +275,10 @@ export const MOCK_SUPPLIERS: Supplier[] = [
 ]
 
 export const MOCK_ATTENDANCE: AttendanceRecord[] = [
-  { id: 'att1', tenantId: 't1', userId: 'u2', user: MOCK_USERS[1], clockIn: new Date(new Date().setHours(8, 0, 0)), date: new Date().toISOString().split('T')[0] },
-  { id: 'att2', tenantId: 't1', userId: 'u3', user: MOCK_USERS[2], clockIn: new Date(new Date().setHours(9, 30, 0)), date: new Date().toISOString().split('T')[0] },
-  { id: 'att3', tenantId: 't1', userId: 'u4', user: MOCK_USERS[3], clockIn: new Date(new Date().setHours(10, 0, 0)), date: new Date().toISOString().split('T')[0] },
-  { id: 'att4', tenantId: 't1', userId: 'u5', user: MOCK_USERS[4], clockIn: new Date(new Date().setHours(7, 0, 0)), date: new Date().toISOString().split('T')[0] },
+  { id: 'att1', tenantId: 't1', userId: 'u2', user: MOCK_USERS.find(user => user.id === 'u2'), clockIn: new Date(new Date().setHours(8, 0, 0)), date: new Date().toISOString().split('T')[0] },
+  { id: 'att2', tenantId: 't1', userId: 'u3', user: MOCK_USERS.find(user => user.id === 'u3'), clockIn: new Date(new Date().setHours(9, 30, 0)), date: new Date().toISOString().split('T')[0] },
+  { id: 'att3', tenantId: 't1', userId: 'u4', user: MOCK_USERS.find(user => user.id === 'u4'), clockIn: new Date(new Date().setHours(10, 0, 0)), date: new Date().toISOString().split('T')[0] },
+  { id: 'att4', tenantId: 't1', userId: 'u5', user: MOCK_USERS.find(user => user.id === 'u5'), clockIn: new Date(new Date().setHours(7, 0, 0)), date: new Date().toISOString().split('T')[0] },
 ]
 
 export const REVENUE_DATA = [

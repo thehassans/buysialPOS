@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useAppStore } from '@/store/app-store'
 import { TaxEngine, generateZATCAQRData } from '@/lib/country-config'
 import { cn, formatDate } from '@/lib/utils'
@@ -10,6 +10,7 @@ import {
   Printer, Download, X, AlertCircle, QrCode, UtensilsCrossed, ShoppingBag, Edit
 } from 'lucide-react'
 import { printCustomerInvoice } from './InvoicePrint'
+import { buildPrintFingerprint, hasPrintedJob, markPrintedJob, shouldAutoPrintCashier } from '@/lib/device-print'
 
 export default function CashierInterface() {
   const { currentTenant, orders, updateOrder, setActiveView, setEditingOrder } = useAppStore()
@@ -17,6 +18,33 @@ export default function CashierInterface() {
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'card' | 'digital'>('cash')
   const [paymentDone, setPaymentDone] = useState(false)
   const [showInvoice, setShowInvoice] = useState(false)
+
+  useEffect(() => {
+    if (!currentTenant || !shouldAutoPrintCashier()) return
+    const printableOrders = orders
+      .filter(order => order.tenantId === currentTenant.id && !order.isPaid && order.status !== 'cancelled')
+      .sort((a, b) => new Date(a.updatedAt).getTime() - new Date(b.updatedAt).getTime())
+
+    printableOrders.forEach(order => {
+      const fingerprint = buildPrintFingerprint(order.id, JSON.stringify({
+        orderType: order.orderType,
+        tableNumber: order.tableNumber,
+        customerName: order.customerName,
+        customerPhone: order.customerPhone,
+        notes: order.notes,
+        total: order.total,
+        items: order.items.map(item => ({
+          id: item.id,
+          menuItemId: item.menuItemId,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+        })),
+      }))
+      if (hasPrintedJob('cashier', fingerprint)) return
+      markPrintedJob('cashier', fingerprint)
+      setTimeout(() => printCustomerInvoice(order, currentTenant), 120)
+    })
+  }, [orders, currentTenant])
 
   if (!currentTenant) return null
   const taxEngine = new TaxEngine(currentTenant.countryCode, currentTenant.vatRate)
@@ -64,7 +92,7 @@ export default function CashierInterface() {
   }
 
   return (
-    <div className="flex flex-col lg:flex-row gap-4 h-[calc(100vh-8rem)]">
+    <div className="flex flex-col lg:flex-row gap-4 min-h-[calc(100vh-8rem)] lg:h-[calc(100vh-8rem)]">
       {/* Orders Queue */}
       <div className="w-full lg:w-80 flex flex-col bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden flex-shrink-0">
         <div className="p-4 border-b border-gray-100">
@@ -132,7 +160,7 @@ export default function CashierInterface() {
           </div>
         ) : (
           <>
-            <div className="p-5 border-b border-gray-100 flex items-center justify-between">
+            <div className="p-4 sm:p-5 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               <div>
                 <div className="flex items-center gap-2">
                   <h3 className="text-gray-900 font-bold">{selectedOrder.invoiceNumber}</h3>
@@ -267,8 +295,8 @@ export default function CashierInterface() {
             )}
 
             {/* Payment Panel */}
-            <div className="p-5 border-t border-gray-100 space-y-4">
-              <div className="grid grid-cols-3 gap-2 text-sm">
+            <div className="p-4 sm:p-5 border-t border-gray-100 space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-sm">
                 <div className="p-3 bg-emerald-50 rounded-xl text-center">
                   <div className="text-emerald-500 text-xs">Subtotal</div>
                   <div className="text-gray-900 font-bold">{taxEngine.formatCurrency(selectedOrder.subtotal)}</div>
@@ -304,7 +332,7 @@ export default function CashierInterface() {
                 ))}
               </div>
 
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <button
                   onClick={processPayment}
                   className="py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm rounded-xl transition-all flex items-center justify-center gap-2"

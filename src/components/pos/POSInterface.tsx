@@ -13,9 +13,10 @@ import {
   CheckCircle, Search, UtensilsCrossed, ShoppingBag, User, Phone, Printer, Receipt, XCircle
 } from 'lucide-react'
 import { useEffect } from 'react'
+import { getDevicePrintRole } from '@/lib/device-print'
 
 export default function POSInterface() {
-  const { currentTenant, addOrder, updateOrder, menuItems, tables, reserveTable, editingOrder, setEditingOrder } = useAppStore()
+  const { currentTenant, currentUser, addOrder, updateOrder, menuItems, tables, reserveTable, editingOrder, setEditingOrder } = useAppStore()
   const [orderType, setOrderType] = useState<OrderType>('dine_in')
   const [selectedTable, setSelectedTable] = useState<Table | null>(null)
   const [selectedCategory, setSelectedCategory] = useState<string>('all')
@@ -44,6 +45,7 @@ export default function POSInterface() {
   if (!currentTenant) return null
   const taxEngine = new TaxEngine(currentTenant.countryCode, currentTenant.vatRate)
   const tenantCategories = MOCK_CATEGORIES.filter(category => category.tenantId === currentTenant.id)
+  const deviceRole = getDevicePrintRole()
 
   const filteredItems = menuItems.filter(item => {
     if (item.tenantId !== currentTenant.id) return false
@@ -93,7 +95,7 @@ export default function POSInterface() {
         customerPhone: customerPhone || undefined,
       })
       setLastOrder({ ...editingOrder, items: cart, total, subtotal, vatAmount })
-      if (autoPrintKitchen) {
+      if (autoPrintKitchen && deviceRole !== 'waiter') {
         printKitchenTicket({ ...editingOrder, items: cart } as Order, currentTenant)
       }
       setOrderSent(true)
@@ -113,6 +115,7 @@ export default function POSInterface() {
     const order = {
       id: `ord-${Date.now()}`,
       tenantId: currentTenant.id,
+      waiterId: currentUser?.role === 'waiter' ? currentUser.id : undefined,
       tableNumber: orderType === 'dine_in' ? selectedTable?.number : undefined,
       items: cart,
       status: 'pending' as const,
@@ -134,7 +137,7 @@ export default function POSInterface() {
       reserveTable(selectedTable.number, order.id)
     }
     setLastOrder(order)
-    if (autoPrintKitchen) {
+    if (autoPrintKitchen && deviceRole !== 'waiter') {
       printKitchenTicket(order, currentTenant)
       setTimeout(() => printCustomerInvoice(order, currentTenant), 600)
     }
@@ -153,7 +156,7 @@ export default function POSInterface() {
   if (orderSent && lastOrder) {
     return (
       <div className="flex-1 flex items-center justify-center h-full">
-        <div className="bg-white rounded-3xl border border-gray-200 shadow-lg p-10 max-w-sm w-full text-center space-y-5">
+        <div className="bg-white rounded-3xl border border-gray-200 shadow-lg p-6 sm:p-10 max-w-md w-full text-center space-y-5">
           <div className="w-20 h-20 rounded-full bg-emerald-100 flex items-center justify-center mx-auto">
             <CheckCircle className="w-10 h-10 text-emerald-600" />
           </div>
@@ -168,7 +171,7 @@ export default function POSInterface() {
             {lastOrder.tableNumber && <span className="px-3 py-1.5 rounded-full bg-emerald-100 text-emerald-700 text-sm font-bold">Table {lastOrder.tableNumber}</span>}
           </div>
           <p className="text-slate-500 text-sm">{cart.length} items · {taxEngine.formatCurrency(lastOrder.total)}</p>
-          <div className="flex gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             <button
               onClick={() => printKitchenTicket(lastOrder, currentTenant)}
               className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-medium transition-all"
@@ -188,9 +191,9 @@ export default function POSInterface() {
   }
 
   return (
-    <div className="flex flex-col lg:flex-row gap-4 h-[calc(100vh-8rem)]">
+    <div className="flex flex-col lg:flex-row gap-4 min-h-[calc(100vh-8rem)] lg:h-[calc(100vh-8rem)]">
       {/* Left: Menu */}
-      <div className="flex-1 flex flex-col gap-3 overflow-hidden">
+      <div className="flex-1 flex flex-col gap-3 overflow-visible lg:overflow-hidden min-w-0">
 
         {/* Order Type Toggle */}
         <div className="bg-white rounded-2xl p-3 border border-gray-200 shadow-sm">
@@ -233,7 +236,7 @@ export default function POSInterface() {
                 <Table2 className="w-4 h-4 text-blue-600" />
                 <h3 className="text-gray-900 font-semibold text-sm">Select Table</h3>
               </div>
-              <div className="grid grid-cols-5 gap-2">
+              <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
                 {tables.filter(t => t.tenantId === currentTenant.id).map(table => (
                   <button
                     key={table.id}
@@ -252,11 +255,11 @@ export default function POSInterface() {
               </div>
             </div>
           ) : (
-            <div className="flex items-center justify-between bg-blue-50 rounded-xl px-4 py-2.5 border border-blue-200">
-              <div className="flex items-center gap-2">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 bg-blue-50 rounded-xl px-4 py-2.5 border border-blue-200">
+              <div className="flex items-center gap-2 min-w-0">
                 <Table2 className="w-4 h-4 text-blue-600" />
                 <span className="text-gray-900 font-semibold text-sm">Table {selectedTable.number}</span>
-                <span className="text-slate-500 text-xs">· {selectedTable.section} · Cap {selectedTable.capacity}</span>
+                <span className="text-slate-500 text-xs truncate">· {selectedTable.section} · Cap {selectedTable.capacity}</span>
               </div>
               <button onClick={() => setSelectedTable(null)} className="text-xs text-blue-600 hover:text-blue-800 font-medium">Change</button>
             </div>
@@ -285,7 +288,7 @@ export default function POSInterface() {
 
         {/* Menu Grid */}
         <div className="flex-1 overflow-y-auto scrollbar-thin">
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
             {filteredItems.map(item => {
               const inCart = cart.find(c => c.menuItemId === item.id)
               return (
@@ -435,7 +438,7 @@ export default function POSInterface() {
                 >
                   <div className={cn('absolute top-0.5 w-3 h-3 bg-white rounded-full shadow transition-transform', autoPrintKitchen ? 'translate-x-4' : 'translate-x-0.5')} />
                 </div>
-                <span className="text-xs text-slate-500">Auto-print invoice + kitchen</span>
+                <span className="text-xs text-slate-500">{deviceRole === 'waiter' ? 'Dedicated kitchen/cashier devices auto-print' : 'Also auto-print on this device'}</span>
               </label>
               <Printer className="w-3.5 h-3.5 text-slate-400" />
             </div>

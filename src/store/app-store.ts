@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
-import { User, Tenant, Order, OrderItem, MenuItem, Table, Theme, Language, UserRole, InventoryItem, AttendanceRecord } from '@/lib/types'
+import { User, Tenant, Order, OrderItem, MenuItem, Table, Theme, Language, InventoryItem, AttendanceRecord } from '@/lib/types'
 import { MOCK_USERS, MOCK_TENANTS, MOCK_ORDERS, MOCK_MENU_ITEMS, MOCK_TABLES, MOCK_INVENTORY, MOCK_ATTENDANCE } from '@/lib/mock-data'
 import { apiSync } from '@/lib/sync-queue'
 
@@ -27,7 +27,6 @@ interface AppState {
   setActiveView: (view: string) => void
   toggleSidebar: () => void
   login: (email: string, password: string) => { success: boolean; error?: string }
-  loginAs: (role: UserRole, tenantId?: string) => void
   logout: () => void
   addTenant: (tenant: Tenant) => void
   updateTenant: (id: string, updates: Partial<Tenant>) => void
@@ -65,7 +64,7 @@ export const useAppStore = create<AppState>()(
       inventoryItems: MOCK_INVENTORY,
       attendance: MOCK_ATTENDANCE,
       activeView: 'dashboard',
-      sidebarOpen: true,
+      sidebarOpen: false,
       editingOrder: null,
 
       setCurrentUser: (user) => set({ currentUser: user }),
@@ -79,32 +78,20 @@ export const useAppStore = create<AppState>()(
         const allUsers = get().users
         const user = allUsers.find(u => u.email.toLowerCase() === email.toLowerCase())
         if (!user) return { success: false, error: 'No account found with this email' }
+        if (user.role === 'super_admin') return { success: false, error: 'Use platform credentials to access the super admin panel' }
         const fallbackPassword = MOCK_USERS.find(u => u.email.toLowerCase() === email.toLowerCase())?.password
         const resolvedPassword = user.password || fallbackPassword
         if (!resolvedPassword || resolvedPassword !== password) return { success: false, error: 'Incorrect password' }
         if (!user.isActive) return { success: false, error: 'Account is deactivated. Contact your admin.' }
         const tenants = get().tenants
-        const tenant = user.role === 'super_admin'
-          ? (tenants[0] || MOCK_TENANTS[0])
-          : tenants.find(t => t.id === user.tenantId)
+        const tenant = tenants.find(t => t.id === user.tenantId)
         if (!tenant) return { success: false, error: 'Tenant not found. Contact platform support.' }
         const defaultView: Record<string, string> = {
           super_admin: 'dashboard', admin: 'dashboard', manager: 'dashboard',
-          waiter: 'pos', chef: 'kds', cashier: 'pos',
+          waiter: 'pos', chef: 'kds', cashier: 'cashier',
         }
         set({ currentUser: user, currentTenant: tenant, language: user.language || 'en', activeView: defaultView[user.role] || 'dashboard' })
         return { success: true }
-      },
-
-      loginAs: (role, tenantId = 't1') => {
-        const users = get().users
-        const tenants = get().tenants
-        const user = users.find(u => u.role === role && u.tenantId === tenantId) || MOCK_USERS.find(u => u.role === role && u.tenantId === tenantId) || MOCK_USERS[0]
-        const tenant = tenants.find(t => t.id === tenantId) || MOCK_TENANTS.find(t => t.id === tenantId) || MOCK_TENANTS[0]
-        const defaultView: Record<string, string> = {
-          waiter: 'pos', chef: 'kds', cashier: 'pos',
-        }
-        set({ currentUser: user, currentTenant: tenant, language: 'en', activeView: defaultView[role] || 'dashboard' })
       },
 
       logout: () => set({ currentUser: null, currentTenant: null }),
@@ -237,7 +224,7 @@ export const useAppStore = create<AppState>()(
             ordersRes.json(), menuRes.json(), usersRes.json(),
           ])
           const parsedOrders = orders.map((o: any) => ({ ...o, createdAt: new Date(o.createdAt), updatedAt: new Date(o.updatedAt) }))
-          const parsedUsers = users.map((u: any) => {
+          const parsedUsers = users.filter((u: any) => u.role !== 'super_admin').map((u: any) => {
             const localUser = existingUsers.find(existing => existing.id === u.id || existing.email.toLowerCase() === u.email.toLowerCase())
             return {
               ...localUser,
@@ -263,12 +250,30 @@ export const useAppStore = create<AppState>()(
     {
       name: 'buysial-pos-storage',
       storage: createJSONStorage(() => localStorage),
+      version: 2,
+      migrate: (persistedState: any) => {
+        if (!persistedState) return persistedState
+        const nextState = { ...persistedState }
+        if (nextState.currentUser?.role === 'super_admin') {
+          nextState.currentUser = null
+          nextState.currentTenant = null
+          nextState.activeView = 'dashboard'
+        }
+        if (Array.isArray(nextState.users)) {
+          nextState.users = nextState.users.filter((user: User) => user.role !== 'super_admin')
+        }
+        if (typeof nextState.sidebarOpen !== 'boolean') {
+          nextState.sidebarOpen = false
+        }
+        return nextState
+      },
       partialize: (state) => ({
         currentUser: state.currentUser,
         currentTenant: state.currentTenant,
         language: state.language,
         theme: state.theme,
         activeView: state.activeView,
+        sidebarOpen: state.sidebarOpen,
         orders: state.orders,
         users: state.users,
         menuItems: state.menuItems,

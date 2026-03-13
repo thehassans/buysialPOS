@@ -5,6 +5,8 @@ import { useAppStore } from '@/store/app-store'
 import { cn, getElapsedMinutes, getOrderPriority } from '@/lib/utils'
 import { Clock, CheckCircle, ChefHat, Bell, AlertTriangle } from 'lucide-react'
 import { OrderItem } from '@/lib/types'
+import { printKitchenTicket } from '../pos/InvoicePrint'
+import { buildPrintFingerprint, hasPrintedJob, markPrintedJob, shouldAutoPrintKitchen } from '@/lib/device-print'
 
 export default function KitchenDisplay() {
   const { currentTenant, orders, updateOrder, updateOrderItemStatus } = useAppStore()
@@ -14,6 +16,33 @@ export default function KitchenDisplay() {
     const timer = setInterval(() => setTick(t => t + 1), 30000)
     return () => clearInterval(timer)
   }, [])
+
+  useEffect(() => {
+    if (!currentTenant || !shouldAutoPrintKitchen()) return
+    const printableOrders = orders
+      .filter(order => order.tenantId === currentTenant.id && !order.isPaid && ['pending', 'preparing'].includes(order.status))
+      .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+
+    printableOrders.forEach(order => {
+      const fingerprint = buildPrintFingerprint(order.id, JSON.stringify({
+        orderType: order.orderType,
+        tableNumber: order.tableNumber,
+        customerName: order.customerName,
+        customerPhone: order.customerPhone,
+        notes: order.notes,
+        total: order.total,
+        items: order.items.map(item => ({
+          id: item.id,
+          menuItemId: item.menuItemId,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+        })),
+      }))
+      if (hasPrintedJob('kitchen', fingerprint)) return
+      markPrintedJob('kitchen', fingerprint)
+      setTimeout(() => printKitchenTicket(order, currentTenant), 120)
+    })
+  }, [orders, currentTenant])
 
   if (!currentTenant) return null
 
@@ -31,9 +60,9 @@ export default function KitchenDisplay() {
   }
 
   return (
-    <div className="h-[calc(100vh-8rem)] flex flex-col gap-4">
+    <div className="min-h-[calc(100vh-8rem)] lg:h-[calc(100vh-8rem)] flex flex-col gap-4">
       {/* KDS Header */}
-      <div className="flex items-center justify-between bg-white rounded-2xl shadow-sm px-5 py-3 border border-gray-200">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-white rounded-2xl shadow-sm px-4 sm:px-5 py-3 border border-gray-200">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl bg-red-900/40 border border-red-700/30 flex items-center justify-center">
             <ChefHat className="w-5 h-5 text-red-600" />
@@ -43,7 +72,7 @@ export default function KitchenDisplay() {
             <div className="text-emerald-600 text-xs">{activeOrders.length} active orders</div>
           </div>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center flex-wrap gap-4">
           {[
             { label: 'Pending', count: activeOrders.filter(o => o.status === 'pending').length, color: 'text-amber-700' },
             { label: 'Preparing', count: activeOrders.filter(o => o.status === 'preparing').length, color: 'text-blue-700' },

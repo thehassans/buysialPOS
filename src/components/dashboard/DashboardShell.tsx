@@ -40,6 +40,14 @@ export default function DashboardShell() {
     }
   }, [currentUser?.id, currentTenant?.id])
 
+  useEffect(() => {
+    if (!currentUser || !currentTenant || currentUser.role === 'super_admin') return
+    const interval = setInterval(() => {
+      initFromDB()
+    }, 7000)
+    return () => clearInterval(interval)
+  }, [currentUser?.id, currentUser?.role, currentTenant?.id, initFromDB])
+
   if (!mounted) return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center">
       <div className="text-emerald-600 text-sm animate-pulse">Loading...</div>
@@ -84,11 +92,11 @@ export default function DashboardShell() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-row" dir={isRTL ? 'rtl' : 'ltr'}>
+    <div className="min-h-screen bg-gray-50 flex flex-row overflow-hidden" dir={isRTL ? 'rtl' : 'ltr'}>
       <Sidebar />
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 min-h-screen">
         <TopBar />
-        <main className="flex-1 overflow-auto p-6 scrollbar-thin bg-gray-50">
+        <main className="flex-1 min-h-0 overflow-auto p-3 sm:p-6 scrollbar-thin bg-gray-50">
           {renderContent()}
         </main>
       </div>
