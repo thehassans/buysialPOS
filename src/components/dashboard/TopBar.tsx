@@ -2,11 +2,11 @@
 
 import { useState, useEffect } from 'react'
 import { useAppStore } from '@/store/app-store'
-import { Bell, Globe, ChefHat, ArrowLeft, ArrowRight, LogOut, Cloud, CloudOff, RefreshCw, Menu } from 'lucide-react'
-import { ROLE_LABELS, ROLE_COLORS } from '@/lib/utils'
-import { cn } from '@/lib/utils'
+import { Bell, Globe, ArrowLeft, ArrowRight, LogOut, Cloud, CloudOff, RefreshCw, Menu } from 'lucide-react'
+import { ROLE_LABELS, ROLE_COLORS, cn } from '@/lib/utils'
 import { useRouter } from 'next/navigation'
 import { getCountryConfig } from '@/lib/country-config'
+import { processQueue, getPendingCount } from '@/lib/sync-queue'
 
 export default function TopBar() {
   const { currentUser, currentTenant, language, setLanguage, activeView, logout, toggleSidebar } = useAppStore()
@@ -14,11 +14,20 @@ export default function TopBar() {
   
   const [isOnline, setIsOnline] = useState(true)
   const [isSyncing, setIsSyncing] = useState(false)
+  const [pendingCount, setPendingCount] = useState(0)
   const [lastSynced, setLastSynced] = useState<Date | null>(null)
 
   useEffect(() => {
     setIsOnline(navigator.onLine)
-    const handleOnline = () => setIsOnline(true)
+    setPendingCount(getPendingCount())
+    const handleOnline = async () => {
+      setIsOnline(true)
+      setIsSyncing(true)
+      const synced = await processQueue()
+      setIsSyncing(false)
+      setPendingCount(getPendingCount())
+      if (synced > 0) setLastSynced(new Date())
+    }
     const handleOffline = () => setIsOnline(false)
     window.addEventListener('online', handleOnline)
     window.addEventListener('offline', handleOffline)
@@ -29,17 +38,12 @@ export default function TopBar() {
   }, [])
 
   const handleManualSync = async () => {
-    if (!isOnline) return
+    if (!isOnline || isSyncing) return
     setIsSyncing(true)
-    try {
-      const res = await fetch('/api/sync/trigger', { method: 'POST' })
-      if (!res.ok) throw new Error('Sync failed')
-      setLastSynced(new Date())
-    } catch (e) {
-      console.error(e)
-    } finally {
-      setIsSyncing(false)
-    }
+    const synced = await processQueue()
+    setIsSyncing(false)
+    setPendingCount(getPendingCount())
+    if (synced > 0) setLastSynced(new Date())
   }
 
   if (!currentUser || !currentTenant) return null
@@ -89,23 +93,26 @@ export default function TopBar() {
           onClick={handleManualSync}
           disabled={!isOnline || isSyncing}
           className={cn(
-            "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all shadow-sm",
-            isOnline 
-              ? isSyncing 
+            "relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all shadow-sm",
+            !isOnline
+              ? "bg-red-50 text-red-700 border-red-200 cursor-not-allowed"
+              : isSyncing
                 ? "bg-blue-50 text-blue-700 border-blue-200 cursor-wait"
-                : "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100"
-              : "bg-red-50 text-red-700 border-red-200 cursor-not-allowed"
+                : pendingCount > 0
+                  ? "bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100"
+                  : "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100"
           )}
-          title={isOnline ? (lastSynced ? `Last synced: ${lastSynced.toLocaleTimeString()}` : "Sync with Cloud") : "Offline - Check Connection"}
+          title={!isOnline ? 'Offline — changes queued locally' : lastSynced ? `Last synced: ${lastSynced.toLocaleTimeString()}` : 'Sync with cloud'}
         >
-          {isOnline ? (
-            isSyncing ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Cloud className="w-3.5 h-3.5" />
-          ) : (
-            <CloudOff className="w-3.5 h-3.5" />
-          )}
+          {!isOnline ? <CloudOff className="w-3.5 h-3.5" /> : isSyncing ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Cloud className="w-3.5 h-3.5" />}
           <span className="hidden sm:inline">
-            {!isOnline ? 'Offline' : isSyncing ? 'Syncing...' : 'Online'}
+            {!isOnline ? 'Offline' : isSyncing ? 'Syncing…' : pendingCount > 0 ? `${pendingCount} pending` : 'Online'}
           </span>
+          {pendingCount > 0 && isOnline && !isSyncing && (
+            <span className="absolute -top-1 -right-1 w-4 h-4 bg-amber-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">
+              {pendingCount}
+            </span>
+          )}
         </button>
         <button
           onClick={() => setLanguage(isAr ? 'en' : 'ar')}

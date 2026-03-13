@@ -10,10 +10,11 @@ import {
   Pencil, Trash2, X, Save, Mail, Phone, Shield, AlertCircle
 } from 'lucide-react'
 
-const ROLE_OPTIONS: UserRole[] = ['admin', 'manager', 'waiter', 'cashier', 'chef']
+const ALL_ROLES: UserRole[] = ['admin', 'manager', 'waiter', 'cashier', 'chef']
+const MANAGER_ROLES: UserRole[] = ['waiter', 'cashier', 'chef']
 
-const EMPTY_FORM: { name: string; email: string; role: UserRole; hourlyRate: number; isActive: boolean; language: Language } = {
-  name: '', email: '', role: 'waiter',
+const EMPTY_FORM: { name: string; email: string; password: string; role: UserRole; hourlyRate: number; isActive: boolean; language: Language } = {
+  name: '', email: '', password: '', role: 'waiter',
   hourlyRate: 0, isActive: true, language: 'en',
 }
 
@@ -27,6 +28,7 @@ export default function HRModule() {
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
 
   const canManage = currentUser?.role === 'admin' || currentUser?.role === 'super_admin' || currentUser?.role === 'manager'
+  const roleOptions = currentUser?.role === 'manager' ? MANAGER_ROLES : ALL_ROLES
   const tenantId = currentTenant?.id || 't1'
   const tenantUsers = users.filter(u => u.tenantId === tenantId && u.role !== 'super_admin')
 
@@ -47,18 +49,22 @@ export default function HRModule() {
 
   const openEdit = (user: User) => {
     setEditingUser(user)
-    setForm({ name: user.name, email: user.email, role: user.role, hourlyRate: user.hourlyRate || 0, isActive: user.isActive, language: user.language })
+    setForm({ name: user.name, email: user.email, password: '', role: user.role, hourlyRate: user.hourlyRate || 0, isActive: user.isActive, language: user.language })
     setShowModal(true)
   }
 
   const handleSave = () => {
     if (!form.name || !form.email) return
     if (editingUser) {
-      updateUser(editingUser.id, { name: form.name, email: form.email, role: form.role, hourlyRate: form.hourlyRate, isActive: form.isActive, language: form.language })
+      const updates: Partial<User> = { name: form.name, email: form.email, role: form.role, hourlyRate: form.hourlyRate, isActive: form.isActive, language: form.language }
+      if (form.password) updates.password = form.password
+      updateUser(editingUser.id, updates)
     } else {
       addUser({
         id: `u-${Date.now()}`, tenantId,
-        name: form.name, email: form.email, role: form.role,
+        name: form.name, email: form.email,
+        password: form.password || `${form.name.split(' ')[0].toLowerCase()}123`,
+        role: form.role,
         hourlyRate: form.hourlyRate, isActive: form.isActive,
         language: form.language, createdAt: new Date(),
       })
@@ -289,6 +295,21 @@ export default function HRModule() {
                     className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-emerald-400"
                   />
                 </div>
+                <div className="col-span-2">
+                  <label className="text-xs font-semibold text-slate-600 block mb-1">
+                    Password {editingUser ? '(leave blank to keep current)' : '*'}
+                  </label>
+                  <input
+                    type="password"
+                    value={form.password}
+                    onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
+                    placeholder={editingUser ? '••••••••' : 'Set login password'}
+                    className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-emerald-400"
+                  />
+                  {!editingUser && !form.password && (
+                    <p className="text-slate-400 text-[10px] mt-1">Auto-generated if left blank: {form.name ? `${form.name.split(' ')[0].toLowerCase()}123` : 'firstname123'}</p>
+                  )}
+                </div>
                 <div>
                   <label className="text-xs font-semibold text-slate-600 block mb-1">Role</label>
                   <select
@@ -296,7 +317,7 @@ export default function HRModule() {
                     onChange={e => setForm(f => ({ ...f, role: e.target.value as UserRole }))}
                     className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-emerald-400 bg-white"
                   >
-                    {ROLE_OPTIONS.map(r => (
+                    {roleOptions.map(r => (
                       <option key={r} value={r}>{ROLE_LABELS[r]}</option>
                     ))}
                   </select>

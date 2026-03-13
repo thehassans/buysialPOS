@@ -156,13 +156,13 @@ export const MOCK_TENANTS: Tenant[] = [
 ]
 
 export const MOCK_USERS: User[] = [
-  { id: 'u0', tenantId: 't1', name: 'Platform Admin', email: 'admin@buysial.com', role: 'super_admin', language: 'en', isActive: true, hourlyRate: 0, createdAt: new Date('2022-01-01') },
-  { id: 'u1', tenantId: 't1', name: 'Ahmed Al-Rashidi', email: 'ahmed@alfanar.com', role: 'admin', language: 'ar', isActive: true, hourlyRate: 0, createdAt: new Date('2023-01-15') },
-  { id: 'u2', tenantId: 't1', name: 'Sarah Johnson', email: 'sarah@alfanar.com', role: 'manager', language: 'en', isActive: true, hourlyRate: 45, createdAt: new Date('2023-02-01') },
-  { id: 'u3', tenantId: 't1', name: 'Mohammed Al-Otaibi', email: 'mo@alfanar.com', role: 'waiter', language: 'ar', isActive: true, hourlyRate: 25, createdAt: new Date('2023-02-15') },
-  { id: 'u4', tenantId: 't1', name: 'Fatima Hassan', email: 'fatima@alfanar.com', role: 'cashier', language: 'ar', isActive: true, hourlyRate: 28, createdAt: new Date('2023-03-01') },
-  { id: 'u5', tenantId: 't1', name: 'Carlos Rivera', email: 'carlos@alfanar.com', role: 'chef', language: 'en', isActive: true, hourlyRate: 55, createdAt: new Date('2023-01-20') },
-  { id: 'u6', tenantId: 't2', name: 'Khalid Al-Mansoori', email: 'khalid@burjbites.ae', role: 'admin', language: 'ar', isActive: true, hourlyRate: 0, createdAt: new Date('2023-03-20') },
+  { id: 'u0', tenantId: 't1', name: 'Platform Admin', email: 'admin@buysial.com', password: 'superadmin123', role: 'super_admin', language: 'en', isActive: true, hourlyRate: 0, createdAt: new Date('2022-01-01') },
+  { id: 'u1', tenantId: 't1', name: 'Ahmed Al-Rashidi', email: 'ahmed@alfanar.com', password: 'admin123', role: 'admin', language: 'ar', isActive: true, hourlyRate: 0, createdAt: new Date('2023-01-15') },
+  { id: 'u2', tenantId: 't1', name: 'Sarah Johnson', email: 'sarah@alfanar.com', password: 'manager123', role: 'manager', language: 'en', isActive: true, hourlyRate: 45, createdAt: new Date('2023-02-01') },
+  { id: 'u3', tenantId: 't1', name: 'Mohammed Al-Otaibi', email: 'mo@alfanar.com', password: 'waiter123', role: 'waiter', language: 'ar', isActive: true, hourlyRate: 25, createdAt: new Date('2023-02-15') },
+  { id: 'u4', tenantId: 't1', name: 'Fatima Hassan', email: 'fatima@alfanar.com', password: 'cashier123', role: 'cashier', language: 'ar', isActive: true, hourlyRate: 28, createdAt: new Date('2023-03-01') },
+  { id: 'u5', tenantId: 't1', name: 'Carlos Rivera', email: 'carlos@alfanar.com', password: 'chef123', role: 'chef', language: 'en', isActive: true, hourlyRate: 55, createdAt: new Date('2023-01-20') },
+  { id: 'u6', tenantId: 't2', name: 'Khalid Al-Mansoori', email: 'khalid@burjbites.ae', password: 'admin123', role: 'admin', language: 'ar', isActive: true, hourlyRate: 0, createdAt: new Date('2023-03-20') },
 ]
 
 export const MOCK_CATEGORIES: Category[] = [

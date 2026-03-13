@@ -1,18 +1,16 @@
 'use client'
 
 import { useState } from 'react'
-import { MOCK_TENANTS } from '@/lib/mock-data'
-import { cn } from '@/lib/utils'
-import { Plus, Search, CheckCircle, XCircle, Crown, X, Edit2, LogIn } from 'lucide-react'
-import { Tenant, CountryCode, Currency, SubscriptionPlan } from '@/lib/types'
-import { useRouter } from 'next/navigation'
 import { useAppStore } from '@/store/app-store'
+import { cn } from '@/lib/utils'
+import { Plus, Search, CheckCircle, XCircle, Crown, X, Edit2, Copy, KeyRound, LogIn } from 'lucide-react'
+import { Tenant, User, CountryCode, Currency, SubscriptionPlan } from '@/lib/types'
 
 const EMPTY_FORM = {
   name: '', slug: '', email: '', phone: '', address: '',
   countryCode: 'KSA' as CountryCode, currency: 'SAR' as Currency,
   vatRate: 0.15, vatNumber: '', subscriptionPlan: 'starter' as SubscriptionPlan,
-  isActive: true, primaryColor: '#059669', validUntil: '', adminPassword: ''
+  isActive: true, primaryColor: '#059669',
 }
 
 const COUNTRY_OPTIONS: { code: CountryCode; label: string; currency: Currency; vat: number }[] = [
@@ -34,18 +32,25 @@ const inputCls = "w-full px-3 py-2 rounded-xl border border-gray-200 text-sm tex
 const selectCls = "w-full px-3 py-2 rounded-xl border border-gray-200 text-sm text-gray-900 focus:border-emerald-500 focus:outline-none bg-gray-50 focus:bg-white transition-colors"
 
 export default function TenantsModule() {
-  const router = useRouter()
-  const { tenants, addTenant, updateTenant, loginAs } = useAppStore()
+  const { tenants, addTenant, updateTenant, addUser, login } = useAppStore()
   const [search, setSearch] = useState('')
   const [viewTenant, setViewTenant] = useState<Tenant | null>(null)
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState({ ...EMPTY_FORM })
+  const [newCreds, setNewCreds] = useState<{ tenantName: string; email: string; password: string } | null>(null)
+  const [copied, setCopied] = useState('')
 
   const filtered = tenants.filter(t =>
     t.name.toLowerCase().includes(search.toLowerCase()) ||
     t.countryCode.toLowerCase().includes(search.toLowerCase())
   )
+
+  const copyText = (text: string, key: string) => {
+    navigator.clipboard.writeText(text).catch(() => {})
+    setCopied(key)
+    setTimeout(() => setCopied(''), 2000)
+  }
 
   const openAdd = () => {
     setEditingId(null)
@@ -62,8 +67,6 @@ export default function TenantsModule() {
       vatRate: t.vatRate, vatNumber: t.vatNumber || '',
       subscriptionPlan: t.subscriptionPlan, isActive: t.isActive,
       primaryColor: t.primaryColor || '#059669',
-      validUntil: t.validUntil ? new Date(t.validUntil).toISOString().split('T')[0] : '',
-      adminPassword: t.adminPassword || ''
     })
     setViewTenant(null)
     setShowForm(true)
@@ -77,30 +80,40 @@ export default function TenantsModule() {
   const handleSave = () => {
     if (!form.name.trim() || !form.email.trim()) return
     if (editingId) {
-      updateTenant(editingId, {
-        ...form,
-        vatRate: Number(form.vatRate),
-        validUntil: form.validUntil ? new Date(form.validUntil) : undefined
-      })
+      updateTenant(editingId, { ...form, vatRate: Number(form.vatRate) })
     } else {
+      const tenantId = `t${Date.now()}`
       const newTenant: Tenant = {
-        id: `t${Date.now()}`,
+        id: tenantId,
         ...form,
         vatRate: Number(form.vatRate),
         slug: form.slug || form.name.toLowerCase().replace(/\s+/g, '-'),
         createdAt: new Date(),
-        validUntil: form.validUntil ? new Date(form.validUntil) : undefined,
         invoiceFooter: 'Thank you for dining with us!',
       }
       addTenant(newTenant)
+      const adminPassword = `${form.name.split(' ')[0].toLowerCase()}${Math.random().toString(36).slice(2, 7)}`
+      const adminUser: User = {
+        id: `u-${Date.now()}`, tenantId,
+        name: `${form.name} Admin`,
+        email: form.email,
+        password: adminPassword,
+        role: 'admin',
+        language: 'en',
+        isActive: true,
+        createdAt: new Date(),
+      }
+      addUser(adminUser)
+      setNewCreds({ tenantName: form.name, email: form.email, password: adminPassword })
     }
     setShowForm(false)
     setEditingId(null)
   }
 
   const toggleStatus = (id: string) => {
-    const t = tenants.find(x => x.id === id)
-    if (t) updateTenant(id, { isActive: !t.isActive })
+    const t = tenants.find(t => t.id === id)
+    if (!t) return
+    updateTenant(id, { isActive: !t.isActive })
     if (viewTenant?.id === id) setViewTenant(v => v ? { ...v, isActive: !v.isActive } : v)
   }
 
@@ -199,8 +212,13 @@ export default function TenantsModule() {
                     <div className="flex items-center gap-1.5">
                       <button
                         onClick={() => {
-                          loginAs('admin', tenant.id)
-                          router.push('/dashboard?role=admin')
+                          const adminUser = tenants
+                            ? useAppStore.getState().users.find(u => u.tenantId === tenant.id && u.role === 'admin')
+                            : undefined
+                          if (adminUser?.password) {
+                            login(adminUser.email, adminUser.password)
+                            window.location.href = '/dashboard'
+                          }
                         }}
                         className="flex items-center gap-1 px-2.5 py-1 bg-white rounded-lg text-xs text-blue-600 font-medium border border-blue-200 hover:border-blue-400 hover:bg-blue-50 hover:shadow-sm transition-all"
                       >
@@ -308,37 +326,22 @@ export default function TenantsModule() {
             </div>
 
             <div className="p-8 space-y-4 max-h-[70vh] overflow-y-auto scrollbar-thin">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4">
-                <div className="col-span-1 sm:col-span-1 lg:col-span-3">
-                  <Field label="Restaurant Name *">
-                    <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} className={inputCls} placeholder="Al Fanar Restaurant" />
-                  </Field>
-                </div>
-                <div className="col-span-1 sm:col-span-1 lg:col-span-3">
-                  <Field label="Slug (URL identifier)">
-                    <input value={form.slug} onChange={e => setForm(f => ({ ...f, slug: e.target.value }))} className={inputCls} placeholder="al-fanar" />
-                  </Field>
-                </div>
-                <div className="col-span-1 sm:col-span-1 lg:col-span-3">
-                  <Field label="Email *">
-                    <input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} className={inputCls} placeholder="info@restaurant.com" />
-                  </Field>
-                </div>
-                <div className="col-span-1 sm:col-span-1 lg:col-span-3">
-                  <Field label="Phone">
-                    <input value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} className={inputCls} placeholder="+966-11-123-4567" />
-                  </Field>
-                </div>
-                <div className="col-span-1 sm:col-span-2 lg:col-span-4">
-                  <Field label="Address">
-                    <input value={form.address} onChange={e => setForm(f => ({ ...f, address: e.target.value }))} className={inputCls} placeholder="King Fahd Road, Riyadh, KSA" />
-                  </Field>
-                </div>
-                <div className="col-span-1 sm:col-span-2 lg:col-span-2">
-                  <Field label="Admin Password">
-                    <input type="password" value={form.adminPassword} onChange={e => setForm(f => ({ ...f, adminPassword: e.target.value }))} className={inputCls} placeholder="Leave blank for none" />
-                  </Field>
-                </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Field label="Restaurant Name *">
+                  <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} className={inputCls} placeholder="Al Fanar Restaurant" />
+                </Field>
+                <Field label="Slug (URL identifier)">
+                  <input value={form.slug} onChange={e => setForm(f => ({ ...f, slug: e.target.value }))} className={inputCls} placeholder="al-fanar" />
+                </Field>
+                <Field label="Email *">
+                  <input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} className={inputCls} placeholder="info@restaurant.com" />
+                </Field>
+                <Field label="Phone">
+                  <input value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} className={inputCls} placeholder="+966-11-123-4567" />
+                </Field>
+                <Field label="Address">
+                  <input value={form.address} onChange={e => setForm(f => ({ ...f, address: e.target.value }))} className={inputCls} placeholder="King Fahd Road, Riyadh, KSA" />
+                </Field>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -365,7 +368,7 @@ export default function TenantsModule() {
                   </select>
                 </Field>
                 <Field label="Expiration Date">
-                  <input type="date" value={form.validUntil} onChange={e => setForm(f => ({ ...f, validUntil: e.target.value }))} className={inputCls} />
+                  <input type="date" className={inputCls} />
                 </Field>
                 <Field label="Status">
                   <select value={form.isActive ? 'active' : 'inactive'} onChange={e => setForm(f => ({ ...f, isActive: e.target.value === 'active' }))} className={selectCls}>
@@ -387,6 +390,51 @@ export default function TenantsModule() {
                 {editingId ? 'Save Changes' : 'Create Tenant'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+      {/* Credentials Dialog - shown after tenant creation */}
+      {newCreds && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+          <div className="bg-white rounded-3xl shadow-xl p-8 w-full max-w-md relative z-10 border border-emerald-200">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-12 h-12 rounded-2xl bg-emerald-100 flex items-center justify-center">
+                <KeyRound className="w-6 h-6 text-emerald-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-gray-900">Tenant Created!</h3>
+                <p className="text-slate-500 text-sm">{newCreds.tenantName} admin credentials</p>
+              </div>
+            </div>
+
+            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-6">
+              <p className="text-amber-700 text-xs font-medium mb-3">⚠️ Save these credentials — the password won't be shown again</p>
+              <div className="space-y-3">
+                {[{ label: 'Email', value: newCreds.email, key: 'email' }, { label: 'Password', value: newCreds.password, key: 'pass' }].map(f => (
+                  <div key={f.key} className="flex items-center justify-between bg-white rounded-xl px-3 py-2.5 border border-amber-100">
+                    <div>
+                      <div className="text-slate-500 text-xs">{f.label}</div>
+                      <div className="text-gray-900 text-sm font-mono font-semibold">{f.value}</div>
+                    </div>
+                    <button
+                      onClick={() => copyText(f.value, f.key)}
+                      className="flex items-center gap-1 text-xs text-emerald-600 hover:text-emerald-700 font-medium"
+                    >
+                      <Copy className="w-3.5 h-3.5" />
+                      {copied === f.key ? 'Copied!' : 'Copy'}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <button
+              onClick={() => setNewCreds(null)}
+              className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm rounded-xl transition-all"
+            >
+              Got it, close
+            </button>
           </div>
         </div>
       )}
