@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
-import { User, Tenant, Order, OrderItem, MenuItem, Table, Theme, Language, UserRole } from '@/lib/types'
-import { MOCK_USERS, MOCK_TENANTS, MOCK_ORDERS, MOCK_MENU_ITEMS, MOCK_TABLES } from '@/lib/mock-data'
+import { User, Tenant, Order, OrderItem, MenuItem, Table, Theme, Language, UserRole, InventoryItem, AttendanceRecord } from '@/lib/types'
+import { MOCK_USERS, MOCK_TENANTS, MOCK_ORDERS, MOCK_MENU_ITEMS, MOCK_TABLES, MOCK_INVENTORY, MOCK_ATTENDANCE } from '@/lib/mock-data'
 import { apiSync } from '@/lib/sync-queue'
 
 interface AppState {
@@ -14,6 +14,8 @@ interface AppState {
   users: User[]
   menuItems: MenuItem[]
   tables: Table[]
+  inventoryItems: InventoryItem[]
+  attendance: AttendanceRecord[]
   activeView: string
   sidebarOpen: boolean
   editingOrder: Order | null
@@ -39,6 +41,10 @@ interface AppState {
   addMenuItem: (item: MenuItem) => void
   updateMenuItem: (id: string, updates: Partial<MenuItem>) => void
   deleteMenuItem: (id: string) => void
+  addInventoryItem: (item: InventoryItem) => void
+  updateInventoryItem: (id: string, updates: Partial<InventoryItem>) => void
+  deleteInventoryItem: (id: string) => void
+  toggleAttendance: (userId: string) => void
   reserveTable: (tableNumber: number, orderId: string) => void
   releaseTable: (tableNumber: number) => void
   initFromDB: () => Promise<void>
@@ -56,6 +62,8 @@ export const useAppStore = create<AppState>()(
       users: MOCK_USERS,
       menuItems: MOCK_MENU_ITEMS,
       tables: MOCK_TABLES,
+      inventoryItems: MOCK_INVENTORY,
+      attendance: MOCK_ATTENDANCE,
       activeView: 'dashboard',
       sidebarOpen: true,
       editingOrder: null,
@@ -71,7 +79,9 @@ export const useAppStore = create<AppState>()(
         const allUsers = get().users
         const user = allUsers.find(u => u.email.toLowerCase() === email.toLowerCase())
         if (!user) return { success: false, error: 'No account found with this email' }
-        if (user.password && user.password !== password) return { success: false, error: 'Incorrect password' }
+        const fallbackPassword = MOCK_USERS.find(u => u.email.toLowerCase() === email.toLowerCase())?.password
+        const resolvedPassword = user.password || fallbackPassword
+        if (!resolvedPassword || resolvedPassword !== password) return { success: false, error: 'Incorrect password' }
         if (!user.isActive) return { success: false, error: 'Account is deactivated. Contact your admin.' }
         const tenants = get().tenants
         const tenant = user.role === 'super_admin'
@@ -87,8 +97,10 @@ export const useAppStore = create<AppState>()(
       },
 
       loginAs: (role, tenantId = 't1') => {
-        const user = MOCK_USERS.find(u => u.role === role && u.tenantId === tenantId) || MOCK_USERS[0]
-        const tenant = MOCK_TENANTS.find(t => t.id === tenantId) || MOCK_TENANTS[0]
+        const users = get().users
+        const tenants = get().tenants
+        const user = users.find(u => u.role === role && u.tenantId === tenantId) || MOCK_USERS.find(u => u.role === role && u.tenantId === tenantId) || MOCK_USERS[0]
+        const tenant = tenants.find(t => t.id === tenantId) || MOCK_TENANTS.find(t => t.id === tenantId) || MOCK_TENANTS[0]
         const defaultView: Record<string, string> = {
           waiter: 'pos', chef: 'kds', cashier: 'pos',
         }
@@ -151,6 +163,50 @@ export const useAppStore = create<AppState>()(
         apiSync(`/api/menu-items/${id}`, 'DELETE')
       },
 
+      addInventoryItem: (item) => {
+        set((state) => ({ inventoryItems: [...state.inventoryItems, item] }))
+      },
+      updateInventoryItem: (id, updates) => {
+        set((state) => ({ inventoryItems: state.inventoryItems.map(item => item.id === id ? { ...item, ...updates } : item) }))
+      },
+      deleteInventoryItem: (id) => {
+        set((state) => ({ inventoryItems: state.inventoryItems.filter(item => item.id !== id) }))
+      },
+      toggleAttendance: (userId) => {
+        const tenantId = get().currentTenant?.id
+        if (!tenantId) return
+        const now = new Date()
+        const date = now.toISOString().split('T')[0]
+        set((state) => {
+          const activeRecord = state.attendance.find(record => record.tenantId === tenantId && record.userId === userId && record.date === date && !record.clockOut)
+          if (activeRecord) {
+            return {
+              attendance: state.attendance.map(record =>
+                record.id === activeRecord.id
+                  ? {
+                      ...record,
+                      clockOut: now,
+                      hoursWorked: Number(((now.getTime() - new Date(record.clockIn).getTime()) / 3600000).toFixed(2)),
+                    }
+                  : record
+              ),
+            }
+          }
+          return {
+            attendance: [
+              ...state.attendance,
+              {
+                id: `att-${Date.now()}`,
+                tenantId,
+                userId,
+                clockIn: now,
+                date,
+              },
+            ],
+          }
+        })
+      },
+
       reserveTable: (tableNumber, orderId) => set((state) => ({
         tables: state.tables.map(t =>
           t.number === tableNumber ? { ...t, isOccupied: true, currentOrderId: orderId } : t
@@ -167,6 +223,10 @@ export const useAppStore = create<AppState>()(
         try {
           const tenantId = get().currentTenant?.id
           if (!tenantId) return
+          const existingUsers = get().users
+          const existingOrders = get().orders
+          const existingMenuItems = get().menuItems
+          const existingCurrentUser = get().currentUser
           const [ordersRes, menuRes, usersRes] = await Promise.all([
             fetch(`/api/orders?tenantId=${tenantId}`),
             fetch(`/api/menu-items?tenantId=${tenantId}`),
@@ -176,10 +236,24 @@ export const useAppStore = create<AppState>()(
           const [orders, menuItems, users] = await Promise.all([
             ordersRes.json(), menuRes.json(), usersRes.json(),
           ])
+          const parsedOrders = orders.map((o: any) => ({ ...o, createdAt: new Date(o.createdAt), updatedAt: new Date(o.updatedAt) }))
+          const parsedUsers = users.map((u: any) => {
+            const localUser = existingUsers.find(existing => existing.id === u.id || existing.email.toLowerCase() === u.email.toLowerCase())
+            return {
+              ...localUser,
+              ...u,
+              createdAt: new Date(u.createdAt),
+              password: u.password ?? localUser?.password,
+            }
+          })
+          const mergedCurrentUser = existingCurrentUser && existingCurrentUser.tenantId === tenantId
+            ? parsedUsers.find((user: User) => user.id === existingCurrentUser.id) || existingCurrentUser
+            : existingCurrentUser
           set({
-            orders: orders.map((o: any) => ({ ...o, createdAt: new Date(o.createdAt), updatedAt: new Date(o.updatedAt) })),
-            menuItems,
-            users: users.map((u: any) => ({ ...u, createdAt: new Date(u.createdAt) })),
+            currentUser: mergedCurrentUser,
+            orders: [...existingOrders.filter(order => order.tenantId !== tenantId), ...parsedOrders].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
+            menuItems: [...existingMenuItems.filter(item => item.tenantId !== tenantId), ...menuItems],
+            users: [...existingUsers.filter(user => user.tenantId !== tenantId), ...parsedUsers],
           })
         } catch (e) {
           console.error('initFromDB failed (using localStorage):', e)
@@ -199,6 +273,8 @@ export const useAppStore = create<AppState>()(
         users: state.users,
         menuItems: state.menuItems,
         tables: state.tables,
+        inventoryItems: state.inventoryItems,
+        attendance: state.attendance,
         tenants: state.tenants,
       }),
     }

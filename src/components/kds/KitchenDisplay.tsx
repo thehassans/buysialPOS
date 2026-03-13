@@ -7,15 +7,18 @@ import { Clock, CheckCircle, ChefHat, Bell, AlertTriangle } from 'lucide-react'
 import { OrderItem } from '@/lib/types'
 
 export default function KitchenDisplay() {
-  const { orders, updateOrder, updateOrderItemStatus } = useAppStore()
-  const [tick, setTick] = useState(0)
+  const { currentTenant, orders, updateOrder, updateOrderItemStatus } = useAppStore()
+  const [, setTick] = useState(0)
 
   useEffect(() => {
     const timer = setInterval(() => setTick(t => t + 1), 30000)
     return () => clearInterval(timer)
   }, [])
 
+  if (!currentTenant) return null
+
   const activeOrders = orders.filter(o =>
+    o.tenantId === currentTenant.id &&
     !o.isPaid && ['pending', 'preparing'].includes(o.status)
   ).sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
 

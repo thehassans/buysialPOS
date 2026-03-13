@@ -3,11 +3,10 @@
 import { useState } from 'react'
 import { useAppStore } from '@/store/app-store'
 import { User, UserRole, Language } from '@/lib/types'
-import { MOCK_ATTENDANCE } from '@/lib/mock-data'
 import { cn, getInitials, ROLE_LABELS, ROLE_COLORS } from '@/lib/utils'
 import {
-  Users, Clock, DollarSign, Plus, LogIn, LogOut, CheckCircle,
-  Pencil, Trash2, X, Save, Mail, Phone, Shield, AlertCircle
+  Users, DollarSign, Plus, LogIn, LogOut, CheckCircle,
+  Pencil, Trash2, X, Save, Shield
 } from 'lucide-react'
 
 const ALL_ROLES: UserRole[] = ['admin', 'manager', 'waiter', 'cashier', 'chef']
@@ -19,9 +18,8 @@ const EMPTY_FORM: { name: string; email: string; password: string; role: UserRol
 }
 
 export default function HRModule() {
-  const { currentTenant, currentUser, users, addUser, updateUser, deleteUser } = useAppStore()
+  const { currentTenant, currentUser, users, attendance, addUser, updateUser, deleteUser, toggleAttendance } = useAppStore()
   const [tab, setTab] = useState<'staff' | 'attendance' | 'payroll'>('staff')
-  const [clockedIn, setClockedIn] = useState<Set<string>>(new Set(MOCK_ATTENDANCE.map(a => a.userId)))
   const [showModal, setShowModal] = useState(false)
   const [editingUser, setEditingUser] = useState<User | null>(null)
   const [form, setForm] = useState<typeof EMPTY_FORM>({ ...EMPTY_FORM })
@@ -31,14 +29,13 @@ export default function HRModule() {
   const roleOptions = currentUser?.role === 'manager' ? MANAGER_ROLES : ALL_ROLES
   const tenantId = currentTenant?.id || 't1'
   const tenantUsers = users.filter(u => u.tenantId === tenantId && u.role !== 'super_admin')
+  const today = new Date().toISOString().split('T')[0]
+  const tenantAttendance = attendance.filter(record => record.tenantId === tenantId && record.date === today)
+  const presentUserIds = new Set(tenantAttendance.filter(record => !record.clockOut).map(record => record.userId))
+  const monthlyPayroll = tenantUsers.reduce((sum, user) => sum + ((user.hourlyRate || 0) * 176), 0)
 
   const toggleClockIn = (userId: string) => {
-    setClockedIn(prev => {
-      const next = new Set(prev)
-      if (next.has(userId)) next.delete(userId)
-      else next.add(userId)
-      return next
-    })
+    toggleAttendance(userId)
   }
 
   const openAdd = () => {
@@ -95,8 +92,8 @@ export default function HRModule() {
       <div className="grid grid-cols-3 gap-4">
         {[
           { label: 'Total Staff', value: tenantUsers.length, icon: Users, color: 'text-blue-600' },
-          { label: 'Present Today', value: clockedIn.size, icon: CheckCircle, color: 'text-emerald-600' },
-          { label: 'Monthly Payroll', value: `${currentTenant?.currency || 'SAR'} 42,800`, icon: DollarSign, color: 'text-amber-600' },
+          { label: 'Present Today', value: presentUserIds.size, icon: CheckCircle, color: 'text-emerald-600' },
+          { label: 'Monthly Payroll', value: `${currentTenant?.currency || 'SAR'} ${monthlyPayroll.toLocaleString()}`, icon: DollarSign, color: 'text-amber-600' },
         ].map(stat => (
           <div key={stat.label} className="bg-white rounded-2xl shadow-sm p-4 border border-gray-200 flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center">
@@ -143,7 +140,7 @@ export default function HRModule() {
                     <div className="w-10 h-10 rounded-full bg-emerald-100 border border-emerald-200 flex items-center justify-center text-gray-900 font-bold text-sm">
                       {getInitials(user.name)}
                     </div>
-                    <div className={cn('absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white', clockedIn.has(user.id) ? 'bg-emerald-500' : 'bg-gray-300')} />
+                    <div className={cn('absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white', presentUserIds.has(user.id) ? 'bg-emerald-500' : 'bg-gray-300')} />
                   </div>
                   <div>
                     <div className="text-gray-900 font-semibold text-sm">{user.name}</div>
@@ -185,9 +182,9 @@ export default function HRModule() {
           </div>
           <div className="divide-y divide-gray-100">
             {tenantUsers.map(user => {
-              const isPresent = clockedIn.has(user.id)
-              const attendance = MOCK_ATTENDANCE.find(a => a.userId === user.id)
-              const clockInTime = attendance?.clockIn ? new Date(attendance.clockIn) : null
+              const isPresent = presentUserIds.has(user.id)
+              const attendanceRecord = tenantAttendance.find(record => record.userId === user.id && !record.clockOut)
+              const clockInTime = attendanceRecord?.clockIn ? new Date(attendanceRecord.clockIn) : null
               const hoursWorked = clockInTime ? ((Date.now() - clockInTime.getTime()) / 3600000).toFixed(1) : '0'
 
               return (

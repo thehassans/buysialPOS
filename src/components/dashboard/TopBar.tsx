@@ -18,22 +18,35 @@ export default function TopBar() {
   const [lastSynced, setLastSynced] = useState<Date | null>(null)
 
   useEffect(() => {
-    setIsOnline(navigator.onLine)
-    setPendingCount(getPendingCount())
-    const handleOnline = async () => {
-      setIsOnline(true)
+    const refreshPending = () => setPendingCount(getPendingCount())
+    const syncIfNeeded = async () => {
+      if (!navigator.onLine || getPendingCount() === 0) return
       setIsSyncing(true)
       const synced = await processQueue()
       setIsSyncing(false)
-      setPendingCount(getPendingCount())
+      refreshPending()
       if (synced > 0) setLastSynced(new Date())
     }
+
+    setIsOnline(navigator.onLine)
+    refreshPending()
+    syncIfNeeded()
+
+    const handleOnline = async () => {
+      setIsOnline(true)
+      await syncIfNeeded()
+    }
     const handleOffline = () => setIsOnline(false)
+    const handleQueueChange = () => refreshPending()
+
     window.addEventListener('online', handleOnline)
     window.addEventListener('offline', handleOffline)
+    window.addEventListener('sync-queue-changed', handleQueueChange)
+
     return () => {
       window.removeEventListener('online', handleOnline)
       window.removeEventListener('offline', handleOffline)
+      window.removeEventListener('sync-queue-changed', handleQueueChange)
     }
   }, [])
 

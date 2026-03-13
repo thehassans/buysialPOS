@@ -1,59 +1,73 @@
 'use client'
 
 import {
-  TrendingUp, ShoppingCart, Package, Users, AlertTriangle,
-  DollarSign, Clock, CheckCircle, ArrowUpRight, ChefHat
+  ShoppingCart, Users, AlertTriangle,
+  DollarSign, ArrowUpRight
 } from 'lucide-react'
 import {
-  AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, PieChart, Pie, Cell
 } from 'recharts'
 import { useAppStore } from '@/store/app-store'
-import { MOCK_ORDERS, MOCK_INVENTORY, MOCK_ATTENDANCE, REVENUE_DATA } from '@/lib/mock-data'
+import { MOCK_CATEGORIES } from '@/lib/mock-data'
 import { TaxEngine } from '@/lib/country-config'
 import { cn } from '@/lib/utils'
-
-const WEEKLY_DATA = [
-  { day: 'Mon', orders: 42, revenue: 8420 },
-  { day: 'Tue', orders: 38, revenue: 7600 },
-  { day: 'Wed', orders: 51, revenue: 10200 },
-  { day: 'Thu', orders: 47, revenue: 9400 },
-  { day: 'Fri', orders: 68, revenue: 13600 },
-  { day: 'Sat', orders: 85, revenue: 17000 },
-  { day: 'Sun', orders: 72, revenue: 14400 },
-]
-
-const CATEGORY_SALES = [
-  { name: 'Grills', value: 38, color: '#f59e0b' },
-  { name: 'Main Course', value: 28, color: '#10b981' },
-  { name: 'Seafood', value: 18, color: '#3b82f6' },
-  { name: 'Beverages', value: 10, color: '#8b5cf6' },
-  { name: 'Desserts', value: 6, color: '#ec4899' },
-]
+import { buildRecentTrend, filterOrdersByPeriod, filterOrdersByTenant, getRevenue } from '@/lib/analytics'
 
 export default function AdminDashboard() {
-  const { currentTenant, orders } = useAppStore()
+  const { currentTenant, orders, inventoryItems, attendance, users } = useAppStore()
   if (!currentTenant) return null
   const taxEngine = new TaxEngine(currentTenant.countryCode, currentTenant.vatRate)
-
-  const activeOrders = orders.filter(o => !o.isPaid && o.status !== 'cancelled')
-  const todayRevenue = orders.reduce((sum, o) => sum + o.total, 0)
-  const lowStockItems = MOCK_INVENTORY.filter(i => i.quantity <= i.minQuantity)
+  const tenantOrders = filterOrdersByTenant(orders, currentTenant.id)
+  const todayOrders = filterOrdersByPeriod(tenantOrders, 'today')
+  const tenantInventory = inventoryItems.filter(item => item.tenantId === currentTenant.id)
+  const lowStockItems = tenantInventory.filter(item => item.quantity <= item.minQuantity)
+  const tenantUsers = users.filter(user => user.tenantId === currentTenant.id && user.role !== 'super_admin')
+  const today = new Date().toISOString().split('T')[0]
+  const presentCount = new Set(
+    attendance
+      .filter(record => record.tenantId === currentTenant.id && record.date === today && !record.clockOut)
+      .map(record => record.userId)
+      .filter(userId => tenantUsers.some(user => user.id === userId))
+  ).size
+  const activeOrders = tenantOrders.filter(order => !['completed', 'cancelled'].includes(order.status))
+  const todayRevenue = getRevenue(todayOrders)
+  const weeklyData = buildRecentTrend(tenantOrders, 7)
+  const categoryLookup = new Map(MOCK_CATEGORIES.filter(category => category.tenantId === currentTenant.id).map(category => [category.id, category.name]))
+  const categoryBaseColors = ['#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ec4899', '#ef4444']
+  const categoryTotals = new Map<string, { name: string; quantity: number }>()
+  for (const order of tenantOrders) {
+    for (const item of order.items) {
+      const key = item.menuItem?.categoryId || 'uncategorized'
+      const existing = categoryTotals.get(key) || { name: categoryLookup.get(key) || 'Uncategorized', quantity: 0 }
+      existing.quantity += item.quantity
+      categoryTotals.set(key, existing)
+    }
+  }
+  const totalCategoryItems = Array.from(categoryTotals.values()).reduce((sum, item) => sum + item.quantity, 0)
+  const categorySales = Array.from(categoryTotals.values())
+    .sort((a, b) => b.quantity - a.quantity)
+    .slice(0, 5)
+    .map((item, index) => ({
+      name: item.name,
+      value: totalCategoryItems > 0 ? Number(((item.quantity / totalCategoryItems) * 100).toFixed(1)) : 0,
+      color: categoryBaseColors[index % categoryBaseColors.length],
+    }))
 
   const statsCards = [
     {
       label: 'Today Revenue',
       value: taxEngine.formatCurrency(todayRevenue),
-      sub: `+12.5% vs yesterday`,
+      sub: `${todayOrders.length} orders today`,
       icon: DollarSign,
       color: 'text-emerald-600',
       bg: 'bg-emerald-50 border-emerald-200',
       trend: 'up',
     },
     {
-      label: 'Active Orders',
-      value: activeOrders.length,
-      sub: `${activeOrders.filter(o => o.status === 'preparing').length} being prepared`,
+      label: 'Today Orders',
+      value: todayOrders.length,
+      sub: `${activeOrders.length} still open`,
       icon: ShoppingCart,
       color: 'text-blue-600',
       bg: 'bg-blue-50 border-blue-200',
@@ -70,8 +84,8 @@ export default function AdminDashboard() {
     },
     {
       label: 'Staff Present',
-      value: MOCK_ATTENDANCE.length,
-      sub: `${MOCK_ATTENDANCE.length}/6 staff clocked in`,
+      value: presentCount,
+      sub: `${presentCount}/${tenantUsers.length} staff clocked in`,
       icon: Users,
       color: 'text-amber-600',
       bg: 'bg-amber-50 border-amber-200',
@@ -88,7 +102,7 @@ export default function AdminDashboard() {
             Good {new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 18 ? 'afternoon' : 'evening'} 👋
           </h2>
           <p className="text-slate-500 text-sm mt-1">
-            {currentTenant.name} · {currentTenant.countryCode === 'KSA' ? '🇸🇦' : '🇦🇪'} {taxEngine.getComplianceLabel()}
+            {currentTenant.name} · {currentTenant.countryCode === 'KSA' ? '🇸🇦' : currentTenant.countryCode === 'UAE' ? '🇦🇪' : '🇴🇲'} {taxEngine.getComplianceLabel()}
           </p>
         </div>
         <div className="flex items-center gap-2 text-xs text-slate-500 bg-white rounded-xl px-3 py-2 border border-gray-200 shadow-sm">
@@ -120,7 +134,7 @@ export default function AdminDashboard() {
         <div className="lg:col-span-2 bg-white rounded-2xl p-6 border border-gray-200 shadow-sm">
           <h3 className="text-gray-900 font-semibold mb-4">Weekly Performance</h3>
           <ResponsiveContainer width="100%" height={200}>
-            <BarChart data={WEEKLY_DATA} barGap={4}>
+            <BarChart data={weeklyData} barGap={4}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
               <XAxis dataKey="day" tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} />
               <YAxis yAxisId="orders" orientation="left" tick={{ fill: '#64748b', fontSize: 10 }} axisLine={false} />
@@ -144,8 +158,8 @@ export default function AdminDashboard() {
           <h3 className="text-gray-900 font-semibold mb-4">Sales by Category</h3>
           <div className="flex justify-center">
             <PieChart width={160} height={160}>
-              <Pie data={CATEGORY_SALES} cx={75} cy={75} innerRadius={50} outerRadius={75} paddingAngle={3} dataKey="value">
-                {CATEGORY_SALES.map((entry, i) => (
+              <Pie data={categorySales} cx={75} cy={75} innerRadius={50} outerRadius={75} paddingAngle={3} dataKey="value">
+                {categorySales.map((entry, i) => (
                   <Cell key={i} fill={entry.color} opacity={0.85} />
                 ))}
               </Pie>
@@ -153,7 +167,7 @@ export default function AdminDashboard() {
             </PieChart>
           </div>
           <div className="space-y-2 mt-2">
-            {CATEGORY_SALES.map(cat => (
+            {categorySales.length > 0 ? categorySales.map(cat => (
               <div key={cat.name} className="flex items-center justify-between text-xs">
                 <div className="flex items-center gap-2">
                   <div className="w-2 h-2 rounded-full" style={{ backgroundColor: cat.color }} />
@@ -161,7 +175,11 @@ export default function AdminDashboard() {
                 </div>
                 <span className="text-gray-900 font-medium">{cat.value}%</span>
               </div>
-            ))}
+            )) : (
+              <div className="text-center text-slate-500 text-sm py-6">
+                No category sales yet.
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -178,7 +196,7 @@ export default function AdminDashboard() {
             </div>
           </div>
           <div className="space-y-3">
-            {orders.slice(0, 4).map(order => {
+            {activeOrders.slice(0, 4).map(order => {
               const elapsed = Math.floor((Date.now() - new Date(order.createdAt).getTime()) / 60000)
               return (
                 <div key={order.id} className="flex items-center gap-3 p-3 rounded-xl bg-gray-50 hover:bg-gray-100 transition-colors">
@@ -208,6 +226,11 @@ export default function AdminDashboard() {
                 </div>
               )
             })}
+            {activeOrders.length === 0 && (
+              <div className="text-center py-8 text-slate-500 text-sm">
+                No live orders for this tenant.
+              </div>
+            )}
           </div>
         </div>
 
@@ -220,7 +243,7 @@ export default function AdminDashboard() {
             </span>
           </div>
           <div className="space-y-3">
-            {MOCK_INVENTORY.map(item => {
+            {lowStockItems.slice(0, 5).map(item => {
               const pct = Math.min(100, (item.quantity / item.minQuantity) * 100)
               const isLow = item.quantity <= item.minQuantity
               return (
@@ -240,6 +263,11 @@ export default function AdminDashboard() {
                 </div>
               )
             })}
+            {lowStockItems.length === 0 && (
+              <div className="text-center py-8 text-slate-500 text-sm">
+                No stock alerts right now.
+              </div>
+            )}
           </div>
         </div>
       </div>

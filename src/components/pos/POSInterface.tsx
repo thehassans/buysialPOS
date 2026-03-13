@@ -43,8 +43,10 @@ export default function POSInterface() {
 
   if (!currentTenant) return null
   const taxEngine = new TaxEngine(currentTenant.countryCode, currentTenant.vatRate)
+  const tenantCategories = MOCK_CATEGORIES.filter(category => category.tenantId === currentTenant.id)
 
   const filteredItems = menuItems.filter(item => {
+    if (item.tenantId !== currentTenant.id) return false
     const matchesCategory = selectedCategory === 'all' || item.categoryId === selectedCategory
     const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (item.nameAr && item.nameAr.includes(searchQuery))
@@ -274,7 +276,7 @@ export default function POSInterface() {
 
         <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-thin">
           <button onClick={() => setSelectedCategory('all')} className={cn('px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all flex-shrink-0', selectedCategory === 'all' ? 'bg-emerald-600 text-white' : 'bg-white text-slate-600 border border-gray-200 hover:bg-emerald-50 hover:text-emerald-700')}>All</button>
-          {MOCK_CATEGORIES.map(cat => (
+          {tenantCategories.map(cat => (
             <button key={cat.id} onClick={() => setSelectedCategory(cat.id)} className={cn('px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all flex-shrink-0 flex items-center gap-1.5', selectedCategory === cat.id ? 'bg-emerald-600 text-white' : 'bg-white text-slate-600 border border-gray-200 hover:bg-emerald-50 hover:text-emerald-700')}>
               <span>{cat.icon}</span> {cat.name}
             </button>

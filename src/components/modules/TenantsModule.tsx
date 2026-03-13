@@ -79,7 +79,8 @@ export default function TenantsModule() {
 
   const handleSave = () => {
     if (!form.name.trim() || !form.email.trim()) return
-    const adminPassword = form.adminPassword.trim() || `${form.name.split(' ')[0].toLowerCase()}${Math.random().toString(36).slice(2, 7)}`
+    const existingTenant = editingId ? tenants.find(tenant => tenant.id === editingId) : null
+    const adminPassword = form.adminPassword.trim() || existingTenant?.adminPassword || `${form.name.split(' ')[0].toLowerCase()}${Math.random().toString(36).slice(2, 7)}`
     if (editingId) {
       updateTenant(editingId, { ...form, adminPassword, vatRate: Number(form.vatRate) })
     } else {

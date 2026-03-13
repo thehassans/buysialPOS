@@ -12,20 +12,22 @@ export async function POST() {
 
     if (userCount === 0) {
       for (const user of MOCK_USERS) {
+        const createData: any = {
+          id: user.id,
+          tenantId: user.tenantId,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          language: user.language,
+          isActive: user.isActive,
+          hourlyRate: user.hourlyRate,
+          createdAt: user.createdAt,
+        }
+        if (user.password) createData.password = user.password
         await db.user.upsert({
           where: { id: user.id },
           update: {},
-          create: {
-            id: user.id,
-            tenantId: user.tenantId,
-            name: user.name,
-            email: user.email,
-            role: user.role,
-            language: user.language,
-            isActive: user.isActive,
-            hourlyRate: user.hourlyRate,
-            createdAt: user.createdAt,
-          },
+          create: createData,
         })
       }
     }

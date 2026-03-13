@@ -20,7 +20,7 @@ export default function CashierInterface() {
 
   if (!currentTenant) return null
   const taxEngine = new TaxEngine(currentTenant.countryCode, currentTenant.vatRate)
-  const pendingOrders = orders.filter(o => !o.isPaid && o.status !== 'cancelled')
+  const pendingOrders = orders.filter(o => o.tenantId === currentTenant.id && !o.isPaid && o.status !== 'cancelled')
 
   const processPayment = () => {
     if (!selectedOrder) return

@@ -2,49 +2,38 @@
 
 import { useState } from 'react'
 import { useAppStore } from '@/store/app-store'
-import { REVENUE_DATA } from '@/lib/mock-data'
 import { TaxEngine } from '@/lib/country-config'
 import { cn } from '@/lib/utils'
+import { ReportPeriod, buildTimeSeries, buildTopSellingItems, countActiveOrders, filterOrdersByPeriod, filterOrdersByTenant, getAverageOrderValue, getRevenue } from '@/lib/analytics'
 import {
-  AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid,
+  AreaChart, Area, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, LineChart, Line
 } from 'recharts'
-import { TrendingUp, Download, Calendar, DollarSign, ShoppingCart, Users } from 'lucide-react'
+import { TrendingUp, Download, DollarSign, ShoppingCart, Clock } from 'lucide-react'
 
-const DAILY_DATA = [
-  { time: '9am', orders: 8, revenue: 1840 },
-  { time: '10am', orders: 14, revenue: 3220 },
-  { time: '11am', orders: 22, revenue: 5060 },
-  { time: '12pm', orders: 45, revenue: 10350 },
-  { time: '1pm', orders: 52, revenue: 11960 },
-  { time: '2pm', orders: 38, revenue: 8740 },
-  { time: '3pm', orders: 28, revenue: 6440 },
-  { time: '4pm', orders: 20, revenue: 4600 },
-  { time: '5pm', orders: 30, revenue: 6900 },
-  { time: '6pm', orders: 48, revenue: 11040 },
-  { time: '7pm', orders: 65, revenue: 14950 },
-  { time: '8pm', orders: 58, revenue: 13340 },
-  { time: '9pm', orders: 42, revenue: 9660 },
-]
-
-const TOP_ITEMS = [
-  { name: 'Mixed Grill', orders: 284, revenue: 41180 },
-  { name: 'Lamb Ouzi', orders: 156, revenue: 28860 },
-  { name: 'Chicken Mandi', orders: 312, revenue: 29640 },
-  { name: 'Fresh Lemon Mint', orders: 520, revenue: 11440 },
-  { name: 'Hummus Platter', orders: 445, revenue: 15575 },
-]
+const PERIOD_LABELS: Record<ReportPeriod, string> = {
+  today: 'Today',
+  week: 'This Week',
+  month: 'This Month',
+  year: 'This Year',
+}
 
 export default function ReportsModule() {
   const { currentTenant, orders } = useAppStore()
-  const [period, setPeriod] = useState<'today' | 'week' | 'month' | 'year'>('month')
+  const [period, setPeriod] = useState<ReportPeriod>('month')
 
   if (!currentTenant) return null
   const taxEngine = new TaxEngine(currentTenant.countryCode, currentTenant.vatRate)
+  const tenantOrders = filterOrdersByTenant(orders, currentTenant.id)
+  const scopedOrders = filterOrdersByPeriod(tenantOrders, period)
+  const chartData = buildTimeSeries(tenantOrders, period)
+  const topItems = buildTopSellingItems(scopedOrders)
 
-  const totalRevenue = REVENUE_DATA.reduce((s, d) => s + d.revenue, 0)
-  const totalOrders = REVENUE_DATA.reduce((s, d) => s + d.orders, 0)
-  const avgOrderValue = totalRevenue / totalOrders
+  const totalRevenue = getRevenue(scopedOrders)
+  const totalOrders = scopedOrders.length
+  const avgOrderValue = getAverageOrderValue(scopedOrders)
+  const activeOrders = countActiveOrders(scopedOrders)
+  const maxRevenue = topItems.length > 0 ? Math.max(...topItems.map(item => item.revenue)) : 1
 
   return (
     <div className="space-y-6">
@@ -74,15 +63,15 @@ export default function ReportsModule() {
       {/* KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: 'Total Revenue', value: taxEngine.formatCurrency(totalRevenue), icon: DollarSign, color: 'text-emerald-600', change: '+18.4%' },
-          { label: 'Total Orders', value: totalOrders.toLocaleString(), icon: ShoppingCart, color: 'text-blue-600', change: '+12.1%' },
-          { label: 'Avg Order Value', value: taxEngine.formatCurrency(avgOrderValue), icon: TrendingUp, color: 'text-amber-600', change: '+5.7%' },
-          { label: 'Customer Satisfaction', value: '4.8 / 5.0', icon: Users, color: 'text-purple-600', change: '+0.2' },
+          { label: `${PERIOD_LABELS[period]} Revenue`, value: taxEngine.formatCurrency(totalRevenue), icon: DollarSign, color: 'text-emerald-600' },
+          { label: `${PERIOD_LABELS[period]} Orders`, value: totalOrders.toLocaleString(), icon: ShoppingCart, color: 'text-blue-600' },
+          { label: 'Avg Order Value', value: taxEngine.formatCurrency(avgOrderValue), icon: TrendingUp, color: 'text-amber-600' },
+          { label: 'Open Orders', value: activeOrders.toLocaleString(), icon: Clock, color: 'text-purple-600' },
         ].map(kpi => (
           <div key={kpi.label} className="bg-white rounded-2xl shadow-sm p-5 border border-gray-200">
             <div className="flex items-center justify-between mb-3">
               <kpi.icon className={cn('w-5 h-5', kpi.color)} />
-              <span className="text-xs text-emerald-500 bg-emerald-50 px-1.5 py-0.5 rounded-full">{kpi.change}</span>
+              <span className="text-xs text-emerald-500 bg-emerald-50 px-1.5 py-0.5 rounded-full">{PERIOD_LABELS[period]}</span>
             </div>
             <div className="text-xl font-black text-gray-900">{kpi.value}</div>
             <div className="text-emerald-600 text-xs mt-1">{kpi.label}</div>
@@ -94,9 +83,9 @@ export default function ReportsModule() {
       <div className="grid lg:grid-cols-2 gap-6">
         {/* Revenue Chart */}
         <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-200">
-          <h3 className="text-gray-900 font-semibold mb-4">Monthly Revenue</h3>
+          <h3 className="text-gray-900 font-semibold mb-4">{PERIOD_LABELS[period]} Revenue Trend</h3>
           <ResponsiveContainer width="100%" height={200}>
-            <AreaChart data={REVENUE_DATA}>
+            <AreaChart data={chartData}>
               <defs>
                 <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
@@ -104,7 +93,7 @@ export default function ReportsModule() {
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-              <XAxis dataKey="month" tick={{ fill: '#64748b', fontSize: 11 }} />
+              <XAxis dataKey="label" tick={{ fill: '#64748b', fontSize: 11 }} />
               <YAxis tick={{ fill: '#64748b', fontSize: 10 }} tickFormatter={v => `${(v/1000).toFixed(0)}k`} />
               <Tooltip
                 contentStyle={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px' }}
@@ -118,11 +107,11 @@ export default function ReportsModule() {
 
         {/* Daily Orders */}
         <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-200">
-          <h3 className="text-gray-900 font-semibold mb-4">Today's Order Flow</h3>
+          <h3 className="text-gray-900 font-semibold mb-4">{PERIOD_LABELS[period]} Order Flow</h3>
           <ResponsiveContainer width="100%" height={200}>
-            <LineChart data={DAILY_DATA}>
+            <LineChart data={chartData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-              <XAxis dataKey="time" tick={{ fill: '#64748b', fontSize: 10 }} />
+              <XAxis dataKey="label" tick={{ fill: '#64748b', fontSize: 10 }} />
               <YAxis tick={{ fill: '#64748b', fontSize: 10 }} />
               <Tooltip contentStyle={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px' }} labelStyle={{ color: '#0f172a' }} />
               <Line type="monotone" dataKey="orders" stroke="#f59e0b" strokeWidth={2} dot={false} />
@@ -135,8 +124,7 @@ export default function ReportsModule() {
       <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-200">
         <h3 className="text-gray-900 font-semibold mb-4">Top Selling Items</h3>
         <div className="space-y-3">
-          {TOP_ITEMS.map((item, idx) => {
-            const maxRevenue = Math.max(...TOP_ITEMS.map(i => i.revenue))
+          {topItems.length > 0 ? topItems.map((item, idx) => {
             const pct = (item.revenue / maxRevenue) * 100
             return (
               <div key={item.name} className="flex items-center gap-4">
@@ -158,7 +146,11 @@ export default function ReportsModule() {
                 </div>
               </div>
             )
-          })}
+          }) : (
+            <div className="text-center py-8 text-slate-500 text-sm">
+              No sales data available for {PERIOD_LABELS[period].toLowerCase()}.
+            </div>
+          )}
         </div>
       </div>
     </div>

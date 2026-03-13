@@ -12,12 +12,10 @@ function DashboardLoader() {
 
   useEffect(() => {
     const role = searchParams.get('role') as UserRole | null
-    if (role) {
+    if (role && !currentUser) {
       loginAs(role)
-    } else if (!currentUser) {
-      loginAs('admin')
     }
-  }, [searchParams])
+  }, [searchParams, currentUser, loginAs])
 
   return <DashboardShell />
 }

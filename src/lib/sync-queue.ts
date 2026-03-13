@@ -9,6 +9,11 @@ interface SyncOp {
 
 const QUEUE_KEY = 'buysial-sync-queue'
 
+function emitQueueChanged() {
+  if (typeof window === 'undefined') return
+  window.dispatchEvent(new CustomEvent('sync-queue-changed'))
+}
+
 function getQueue(): SyncOp[] {
   if (typeof window === 'undefined') return []
   try { return JSON.parse(localStorage.getItem(QUEUE_KEY) || '[]') } catch { return [] }
@@ -17,6 +22,7 @@ function getQueue(): SyncOp[] {
 function saveQueue(ops: SyncOp[]) {
   if (typeof window === 'undefined') return
   localStorage.setItem(QUEUE_KEY, JSON.stringify(ops))
+  emitQueueChanged()
 }
 
 export function enqueue(url: string, method: SyncOp['method'], body?: unknown) {
