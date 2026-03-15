@@ -5,7 +5,7 @@ export async function POST(req: Request) {
   try {
     const { email, password } = await req.json()
     const configuredEmail = process.env.SUPER_ADMIN_EMAIL?.trim().toLowerCase()
-    const configuredPassword = process.env.SUPER_ADMIN_PASSWORD
+    const configuredPassword = process.env.SUPER_ADMIN_PASSWORD || process.env.SUPER_SUPER_ADMIN_PASSWORD
     const configuredName = process.env.SUPER_ADMIN_NAME?.trim() || 'Platform Admin'
 
     if (!configuredEmail || !configuredPassword) {

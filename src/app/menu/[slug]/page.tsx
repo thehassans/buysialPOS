@@ -1,11 +1,56 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { MOCK_TENANTS, MOCK_CATEGORIES, MOCK_MENU_ITEMS } from '@/lib/mock-data'
 import { TaxEngine } from '@/lib/country-config'
 import { cn } from '@/lib/utils'
-import { ShoppingCart, Plus, Minus, Sun, Moon, Search, Flame, Sparkles, X, ChefHat } from 'lucide-react'
-import { MenuItem, OrderItem } from '@/lib/types'
+import { ShoppingCart, Plus, Minus, Sun, Moon, Search, Flame, Sparkles, X, ChefHat, MapPin, Phone, BadgeCheck } from 'lucide-react'
+import { MenuItem, OrderItem, Tenant } from '@/lib/types'
+
+const COUNTRY_META = {
+  KSA: { flag: '🇸🇦', label: 'Saudi Arabia' },
+  UAE: { flag: '🇦🇪', label: 'United Arab Emirates' },
+  OMN: { flag: '🇴🇲', label: 'Oman' },
+} as const
+
+function buildTenantFromQuery(searchParams: URLSearchParams, slug: string): Tenant | null {
+  const tenantId = searchParams.get('tenantId')
+  const name = searchParams.get('name')
+
+  if (!tenantId || !name) return null
+
+  const countryCode = (searchParams.get('countryCode') as Tenant['countryCode']) || 'KSA'
+  const currency = (searchParams.get('currency') as Tenant['currency']) || 'SAR'
+  const vatRate = Number(searchParams.get('vatRate') || 0.15)
+
+  return {
+    id: tenantId,
+    name,
+    slug,
+    logo: searchParams.get('logo') || '/logo.png',
+    countryCode,
+    currency,
+    vatRate: Number.isFinite(vatRate) ? vatRate : 0.15,
+    vatNumber: searchParams.get('vatNumber') || undefined,
+    address: searchParams.get('address') || '',
+    phone: searchParams.get('phone') || '',
+    email: searchParams.get('email') || '',
+    subscriptionPlan: 'professional',
+    isActive: true,
+    createdAt: new Date(),
+    invoiceFooter: searchParams.get('invoiceFooter') || undefined,
+    primaryColor: searchParams.get('primaryColor') || '#059669',
+  }
+}
+
+function formatCategoryName(categoryId: string) {
+  const knownCategory = MOCK_CATEGORIES.find(category => category.id === categoryId)
+  if (knownCategory) return knownCategory.name
+  return categoryId
+    .replace(/[-_]/g, ' ')
+    .replace(/\b\w/g, character => character.toUpperCase())
+}
 
 export default function PublicMenuPage({ params }: { params: { slug: string } }) {
   const [darkMode, setDarkMode] = useState(true)
@@ -14,59 +59,172 @@ export default function PublicMenuPage({ params }: { params: { slug: string } })
   const [cartOpen, setCartOpen] = useState(false)
   const [search, setSearch] = useState('')
   const [orderPlaced, setOrderPlaced] = useState(false)
+  const [menuItems, setMenuItems] = useState<MenuItem[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [usingFallbackMenu, setUsingFallbackMenu] = useState(false)
+  const searchParams = useSearchParams()
 
-  const tenant = MOCK_TENANTS.find(t => t.slug === params.slug) || MOCK_TENANTS[0]
-  const taxEngine = new TaxEngine(tenant.countryCode, tenant.vatRate)
+  const slug = decodeURIComponent(params.slug)
+  const tenant = useMemo(() => {
+    return buildTenantFromQuery(searchParams, slug) || MOCK_TENANTS.find(item => item.slug === slug) || null
+  }, [searchParams, slug])
 
-  const filteredItems = MOCK_MENU_ITEMS.filter(item => {
-    const matchesCat = activeCategory === 'all' || item.categoryId === activeCategory
-    const matchesSearch = item.name.toLowerCase().includes(search.toLowerCase()) ||
-      (item.nameAr && item.nameAr.includes(search))
-    return matchesCat && matchesSearch && item.isAvailable
-  })
+  const tenantId = searchParams.get('tenantId') || tenant?.id || null
+  const tenantLogo = tenant?.logo || searchParams.get('logo') || '/logo.png'
+  const brandColor = tenant?.primaryColor || '#059669'
+  const taxEngine = tenant ? new TaxEngine(tenant.countryCode, tenant.vatRate) : null
 
-  const cartCount = cart.reduce((s, i) => s + i.quantity, 0)
-  const subtotal = cart.reduce((s, i) => s + i.unitPrice * i.quantity, 0)
-  const { vatAmount, total } = taxEngine.calculate(subtotal)
+  useEffect(() => {
+    if (!tenantId) {
+      setMenuItems([])
+      setIsLoading(false)
+      return
+    }
+
+    let cancelled = false
+
+    const loadMenu = async () => {
+      setIsLoading(true)
+      setUsingFallbackMenu(false)
+
+      try {
+        const response = await fetch(`/api/menu-items?tenantId=${encodeURIComponent(tenantId)}`)
+        if (!response.ok) throw new Error('Failed to fetch menu')
+        const data = await response.json()
+        if (cancelled) return
+        const scopedItems = Array.isArray(data)
+          ? data.filter((item: MenuItem) => item.tenantId === tenantId && item.isAvailable)
+          : []
+
+        if (scopedItems.length > 0) {
+          setMenuItems(scopedItems)
+        } else {
+          setUsingFallbackMenu(true)
+          setMenuItems(MOCK_MENU_ITEMS.filter(item => item.tenantId === tenantId && item.isAvailable))
+        }
+      } catch {
+        if (cancelled) return
+        setUsingFallbackMenu(true)
+        setMenuItems(MOCK_MENU_ITEMS.filter(item => item.tenantId === tenantId && item.isAvailable))
+      } finally {
+        if (!cancelled) setIsLoading(false)
+      }
+    }
+
+    loadMenu()
+
+    return () => {
+      cancelled = true
+    }
+  }, [tenantId])
+
+  const categories = useMemo(() => {
+    const scopedCategories = MOCK_CATEGORIES
+      .filter(category => category.tenantId === tenantId)
+      .filter(category => menuItems.some(item => item.categoryId === category.id))
+
+    if (scopedCategories.length > 0) return scopedCategories
+
+    return Array.from(new Set(menuItems.map(item => item.categoryId).filter(Boolean))).map((categoryId, index) => ({
+      id: categoryId,
+      tenantId: tenantId || 'public',
+      name: formatCategoryName(categoryId),
+      nameAr: undefined,
+      icon: ['🍽️', '🥗', '🥘', '🍰', '🥤'][index % 5],
+      sortOrder: index + 1,
+      isActive: true,
+    }))
+  }, [menuItems, tenantId])
+
+  const filteredItems = useMemo(() => {
+    return menuItems.filter(item => {
+      const matchesCat = activeCategory === 'all' || item.categoryId === activeCategory
+      const matchesSearch = item.name.toLowerCase().includes(search.toLowerCase()) ||
+        (item.nameAr && item.nameAr.includes(search))
+      return matchesCat && matchesSearch && item.isAvailable
+    })
+  }, [menuItems, activeCategory, search])
+
+  const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0)
+  const subtotal = cart.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0)
+  const { vatAmount, total } = taxEngine ? taxEngine.calculate(subtotal) : { vatAmount: 0, total: subtotal }
 
   const addToCart = (item: MenuItem) => {
     setCart(prev => {
-      const ex = prev.find(c => c.menuItemId === item.id)
-      if (ex) return prev.map(c => c.menuItemId === item.id ? { ...c, quantity: c.quantity + 1 } : c)
-      return [...prev, { id: `ci-${Date.now()}`, menuItemId: item.id, menuItem: item, quantity: 1, unitPrice: item.price, status: 'pending' as const }]
+      const existing = prev.find(cartItem => cartItem.menuItemId === item.id)
+      if (existing) {
+        return prev.map(cartItem => cartItem.menuItemId === item.id ? { ...cartItem, quantity: cartItem.quantity + 1 } : cartItem)
+      }
+
+      return [
+        ...prev,
+        {
+          id: `ci-${Date.now()}`,
+          menuItemId: item.id,
+          menuItem: item,
+          quantity: 1,
+          unitPrice: item.price,
+          status: 'pending' as const,
+        },
+      ]
     })
   }
 
   const updateQty = (itemId: string, delta: number) => {
-    setCart(prev => prev.map(c => {
-      if (c.menuItemId !== itemId) return c
-      const newQty = c.quantity + delta
-      return newQty <= 0 ? null : { ...c, quantity: newQty }
+    setCart(prev => prev.map(item => {
+      if (item.menuItemId !== itemId) return item
+      const newQuantity = item.quantity + delta
+      return newQuantity <= 0 ? null : { ...item, quantity: newQuantity }
     }).filter(Boolean) as OrderItem[])
   }
 
   const placeOrder = () => {
     setCartOpen(false)
     setOrderPlaced(true)
-    setTimeout(() => { setOrderPlaced(false); setCart([]) }, 4000)
+    setTimeout(() => {
+      setOrderPlaced(false)
+      setCart([])
+    }, 4000)
   }
 
-  const bg = darkMode ? 'bg-gray-50' : 'bg-gray-50'
-  const card = darkMode ? 'bg-white border-emerald-900/40' : 'bg-white border-gray-100'
-  const text = darkMode ? 'text-gray-900' : 'text-gray-900'
-  const subtext = darkMode ? 'text-emerald-500' : 'text-gray-500'
+  const bg = darkMode
+    ? 'bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.14),_transparent_28%),linear-gradient(180deg,#05120e_0%,#0c1e18_36%,#f6f0e8_36%,#f6f0e8_100%)]'
+    : 'bg-[radial-gradient(circle_at_top,_rgba(5,150,105,0.12),_transparent_32%),linear-gradient(180deg,#0b1720_0%,#10231c_32%,#fbf8f2_32%,#fbf8f2_100%)]'
+  const surface = darkMode ? 'bg-white/92 border-white/80' : 'bg-white border-stone-200'
+  const text = 'text-slate-950'
+  const subtext = 'text-slate-500'
+  const country = tenant ? COUNTRY_META[tenant.countryCode] : null
+
+  if (!tenant || !tenantId) {
+    return (
+      <div className="min-h-screen bg-[#07120f] px-4 py-12 text-white">
+        <div className="mx-auto max-w-lg rounded-[32px] border border-white/10 bg-white/5 p-8 text-center backdrop-blur-xl">
+          <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full border border-white/10 bg-white/10">
+            <ChefHat className="h-9 w-9 text-emerald-300" />
+          </div>
+          <h1 className="mt-6 text-3xl font-black">Restaurant menu unavailable</h1>
+          <p className="mt-3 text-sm text-slate-300">
+            This QR link is not connected to a valid restaurant menu. Please scan the restaurant’s official QR code again.
+          </p>
+        </div>
+      </div>
+    )
+  }
 
   if (orderPlaced) {
     return (
-      <div className={cn('min-h-screen flex items-center justify-center', bg)}>
-        <div className="text-center space-y-6 px-4">
-          <div className="w-24 h-24 rounded-full bg-emerald-50 border-2 border-emerald-500 flex items-center justify-center mx-auto">
-            <ChefHat className="w-12 h-12 text-emerald-600" />
+      <div className={cn('min-h-screen flex items-center justify-center px-4', bg)}>
+        <div className="w-full max-w-lg rounded-[36px] border border-white/70 bg-white/90 p-10 text-center shadow-[0_40px_120px_rgba(15,23,42,0.12)] backdrop-blur-xl">
+          <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-full border-2 bg-emerald-50" style={{ borderColor: brandColor }}>
+            <ChefHat className="h-12 w-12" style={{ color: brandColor }} />
           </div>
-          <h2 className={cn('text-2xl font-black', text)}>Order Received! 🎉</h2>
-          <p className={cn(subtext, 'text-sm')}>Your order has been sent to the kitchen.<br />We'll bring it to your table shortly.</p>
-          <div className="flex items-center justify-center gap-2 text-emerald-500 text-sm">
-            <div className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+          <h2 className={cn('mt-6 text-3xl font-black', text)}>Order received</h2>
+          <p className={cn('mt-3 text-sm leading-relaxed', subtext)}>
+            Your order has been sent to the kitchen for <span className="font-semibold text-slate-900">{tenant.name}</span>.
+            We’ll bring it to your table shortly.
+          </p>
+          <div className="mt-6 flex items-center justify-center gap-2 text-sm" style={{ color: brandColor }}>
+            <div className="h-2.5 w-2.5 rounded-full animate-ping" style={{ backgroundColor: brandColor }} />
             Preparing your order...
           </div>
         </div>
@@ -77,148 +235,254 @@ export default function PublicMenuPage({ params }: { params: { slug: string } })
   return (
     <div className={cn('min-h-screen', bg, text)}>
       {/* Header */}
-      <header className={cn('sticky top-0 z-30', darkMode ? 'bg-gray-50/90 backdrop-blur-xl border-b border-gray-100' : 'bg-white/90 backdrop-blur-xl border-b border-gray-100')}>
-        <div className="max-w-lg mx-auto px-4 h-16 flex items-center justify-between">
-          <div>
-            <h1 className={cn('font-black text-lg leading-tight', text)}>{tenant.name}</h1>
-            <p className={cn('text-xs', subtext)}>{tenant.countryCode === 'KSA' ? '🇸🇦' : '🇦🇪'} · {taxEngine.getVatLabel()}</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setDarkMode(!darkMode)}
-              className={cn('w-9 h-9 rounded-full flex items-center justify-center transition-all', darkMode ? 'bg-emerald-900/40 text-emerald-600' : 'bg-gray-100 text-gray-600')}
-            >
-              {darkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-            </button>
-            {cartCount > 0 && (
+      <header className="relative overflow-hidden">
+        <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(255,255,255,0.14),transparent_48%)]" />
+        <div className="mx-auto max-w-3xl px-4 pb-10 pt-6 sm:px-6">
+          <div className="rounded-[34px] border border-white/10 bg-[#081612]/80 p-5 shadow-[0_35px_90px_rgba(2,6,23,0.34)] backdrop-blur-xl sm:p-7">
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-[22px] border border-white/10 bg-white/90 shadow-sm">
+                  <img src={tenantLogo} alt={tenant.name} className="h-full w-full object-cover" />
+                </div>
+                <div>
+                  <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-200">
+                    <BadgeCheck className="h-3.5 w-3.5" />
+                    Signature dining menu
+                  </div>
+                  <h1 className="mt-3 text-2xl font-black text-white sm:text-3xl">{tenant.name}</h1>
+                  <p className="mt-1 text-sm text-emerald-100/80">
+                    {country?.flag} {country?.label} · {taxEngine?.getVatLabel()}
+                  </p>
+                </div>
+              </div>
               <button
-                onClick={() => setCartOpen(true)}
-                className="relative flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white text-sm font-semibold rounded-full"
+                onClick={() => setDarkMode(!darkMode)}
+                className="flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-white/10 text-white transition-all"
               >
-                <ShoppingCart className="w-4 h-4" />
-                {cartCount}
-                <span className="ml-1">{taxEngine.formatCurrency(total)}</span>
+                {darkMode ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
               </button>
-            )}
+            </div>
+
+            <div className="mt-6 grid gap-3 text-sm text-slate-200 sm:grid-cols-2">
+              {tenant.address && (
+                <div className="flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+                  <MapPin className="h-4 w-4 text-emerald-300" />
+                  <span className="line-clamp-1">{tenant.address}</span>
+                </div>
+              )}
+              {tenant.phone && (
+                <div className="flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+                  <Phone className="h-4 w-4 text-emerald-300" />
+                  <span>{tenant.phone}</span>
+                </div>
+              )}
+            </div>
+
+            <div className="mt-6 rounded-[28px] border border-white/10 bg-white/5 p-5 text-slate-100">
+              <div className="text-xs font-semibold uppercase tracking-[0.24em] text-emerald-200">Curated for this restaurant only</div>
+              <div className="mt-2 text-2xl font-black text-white">Scan, browse, and order from the official {tenant.name} menu.</div>
+              <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate-300">
+                This QR code is bound to this restaurant profile, branding, tax settings, and live menu items only.
+              </p>
+            </div>
           </div>
         </div>
       </header>
 
-      <div className="max-w-lg mx-auto px-4 pb-24">
-        {/* Search */}
-        <div className="py-4">
-          <div className={cn('relative flex items-center rounded-2xl border', darkMode ? 'bg-emerald-50 border-gray-200' : 'bg-gray-100 border-gray-200')}>
-            <Search className={cn('absolute left-3.5 w-4 h-4', subtext)} />
-            <input
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              placeholder="Search dishes..."
-              className={cn('w-full bg-transparent pl-10 pr-4 py-3 text-sm focus:outline-none', text, 'placeholder:text-opacity-50')}
-              style={{ color: darkMode ? '#d1fae5' : '#111827' }}
-            />
-          </div>
-        </div>
+      <div className="mx-auto max-w-3xl px-4 pb-24 sm:px-6">
+        <div className={cn('rounded-[34px] border p-4 shadow-[0_28px_80px_rgba(15,23,42,0.08)] backdrop-blur-xl sm:p-6', surface)}>
+          {usingFallbackMenu && (
+            <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs font-medium text-amber-700">
+              Showing the restaurant’s available fallback menu while live menu sync completes.
+            </div>
+          )}
 
-        {/* Category Pills */}
-        <div className="flex gap-2 overflow-x-auto pb-3 scrollbar-thin">
-          <button
-            onClick={() => setActiveCategory('all')}
-            className={cn('flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap flex-shrink-0 transition-all border',
-              activeCategory === 'all'
-                ? 'bg-emerald-600 text-white border-transparent'
-                : darkMode ? 'bg-emerald-50 text-emerald-600 border-gray-200' : 'bg-white text-gray-600 border-gray-200'
-            )}
-          >
-            All
-          </button>
-          {MOCK_CATEGORIES.map(cat => (
-            <button
-              key={cat.id}
-              onClick={() => setActiveCategory(cat.id)}
-              className={cn('flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap flex-shrink-0 transition-all border',
-                activeCategory === cat.id
-                  ? 'bg-emerald-600 text-white border-transparent'
-                  : darkMode ? 'bg-emerald-50 text-emerald-600 border-gray-200' : 'bg-white text-gray-600 border-gray-200'
+          {/* Search */}
+          <div className="mb-4 rounded-[28px] border border-slate-200 bg-white px-4 py-4 shadow-sm">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <div className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Menu discovery</div>
+                <div className="mt-1 text-lg font-black text-slate-950">{menuItems.length} dishes available</div>
+              </div>
+              {cartCount > 0 && (
+                <button
+                  onClick={() => setCartOpen(true)}
+                  className="inline-flex items-center justify-center gap-2 rounded-full px-4 py-3 text-sm font-semibold text-white shadow-lg"
+                  style={{ backgroundColor: brandColor }}
+                >
+                  <ShoppingCart className="h-4 w-4" />
+                  {cartCount}
+                  <span>{taxEngine?.formatCurrency(total)}</span>
+                </button>
               )}
-            >
-              <span>{cat.icon}</span> {cat.name}
-            </button>
-          ))}
-        </div>
+            </div>
 
-        {/* Menu Items */}
-        <div className="space-y-3">
-          {filteredItems.map(item => {
-            const inCart = cart.find(c => c.menuItemId === item.id)
-            return (
-              <div
-                key={item.id}
-                className={cn('rounded-2xl border overflow-hidden transition-all', card, inCart ? 'ring-1 ring-emerald-500/50' : '')}
+            <div className="relative mt-4 flex items-center rounded-2xl border border-slate-200 bg-[#f8faf9]">
+              <Search className={cn('absolute left-3.5 h-4 w-4', subtext)} />
+              <input
+                value={search}
+                onChange={event => setSearch(event.target.value)}
+                placeholder="Search signature dishes..."
+                className={cn('w-full bg-transparent pl-10 pr-4 py-3 text-sm focus:outline-none', text, 'placeholder:text-slate-400')}
+              />
+            </div>
+          </div>
+
+          {/* Category Pills */}
+          <div className="mb-5 flex gap-2 overflow-x-auto pb-2">
+            <button
+              onClick={() => setActiveCategory('all')}
+              className={cn(
+                'rounded-full border px-4 py-2 text-sm font-medium whitespace-nowrap transition-all',
+                activeCategory === 'all' ? 'border-transparent text-white shadow-sm' : 'border-slate-200 bg-white text-slate-600'
+              )}
+              style={activeCategory === 'all' ? { backgroundColor: brandColor } : undefined}
+            >
+              All
+            </button>
+            {categories.map(category => (
+              <button
+                key={category.id}
+                onClick={() => setActiveCategory(category.id)}
+                className={cn(
+                  'rounded-full border px-4 py-2 text-sm font-medium whitespace-nowrap transition-all',
+                  activeCategory === category.id ? 'border-transparent text-white shadow-sm' : 'border-slate-200 bg-white text-slate-600'
+                )}
+                style={activeCategory === category.id ? { backgroundColor: brandColor } : undefined}
               >
-                <div className="flex gap-3 p-3">
-                  {item.image && (
-                    <div className="w-24 h-24 rounded-xl overflow-hidden flex-shrink-0 bg-gray-100">
-                      <img src={item.image} alt={item.name} className="w-full h-full object-cover" loading="lazy" />
-                    </div>
+                <span className="mr-1.5">{category.icon}</span>
+                {category.name}
+              </button>
+            ))}
+          </div>
+
+          {/* Menu Items */}
+          <div className="space-y-4">
+            {isLoading && (
+              <div className="rounded-[28px] border border-slate-200 bg-white px-5 py-12 text-center text-sm text-slate-500">
+                Loading the restaurant menu...
+              </div>
+            )}
+
+            {!isLoading && filteredItems.length === 0 && (
+              <div className="rounded-[28px] border border-slate-200 bg-white px-5 py-12 text-center">
+                <div className="text-xl font-black text-slate-950">No dishes found</div>
+                <p className="mt-2 text-sm text-slate-500">
+                  Try a different search term or category for this restaurant menu.
+                </p>
+              </div>
+            )}
+
+            {!isLoading && filteredItems.map(item => {
+              const inCart = cart.find(cartItem => cartItem.menuItemId === item.id)
+
+              return (
+                <div
+                  key={item.id}
+                  className={cn(
+                    'overflow-hidden rounded-[30px] border border-slate-200 bg-white shadow-sm transition-all',
+                    inCart ? 'ring-2 ring-offset-2 ring-offset-transparent' : ''
                   )}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between gap-2">
+                  style={inCart ? { borderColor: brandColor, boxShadow: `0 0 0 1px ${brandColor}40` } : undefined}
+                >
+                  <div className="flex flex-col gap-4 p-4 sm:flex-row sm:p-5">
+                    <div className="h-44 overflow-hidden rounded-[24px] bg-slate-100 sm:h-32 sm:w-36 sm:flex-shrink-0">
+                      {item.image ? (
+                        <img src={item.image} alt={item.name} className="h-full w-full object-cover" loading="lazy" />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center text-4xl">🍽️</div>
+                      )}
+                    </div>
+
+                    <div className="flex flex-1 flex-col justify-between gap-4">
                       <div>
-                        <div className="flex items-center gap-1.5 flex-wrap">
+                        <div className="flex flex-wrap items-center gap-2">
                           {item.isPopular && (
-                            <span className="inline-flex items-center gap-0.5 text-[10px] bg-gold-500/20 text-gold-400 px-1.5 py-0.5 rounded-full font-medium">
-                              <Flame className="w-2.5 h-2.5" /> Popular
+                            <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-1 text-[10px] font-semibold text-amber-600">
+                              <Flame className="h-3 w-3" />
+                              Popular
                             </span>
                           )}
                           {item.isNew && (
-                            <span className="inline-flex items-center gap-0.5 text-[10px] bg-emerald-500/20 text-emerald-600 px-1.5 py-0.5 rounded-full font-medium">
-                              <Sparkles className="w-2.5 h-2.5" /> New
+                            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-semibold text-emerald-600">
+                              <Sparkles className="h-3 w-3" />
+                              New
                             </span>
                           )}
                         </div>
-                        <h3 className={cn('font-bold text-sm mt-0.5', text)}>{item.name}</h3>
-                        {item.nameAr && (
-                          <p className={cn('text-xs mt-0.5', subtext)} dir="rtl">{item.nameAr}</p>
-                        )}
+
+                        <div className="mt-2 flex items-start justify-between gap-4">
+                          <div>
+                            <h3 className="text-lg font-black text-slate-950">{item.name}</h3>
+                            {item.nameAr && (
+                              <p className="mt-1 text-sm text-slate-500" dir="rtl">{item.nameAr}</p>
+                            )}
+                          </div>
+                          <div className="text-right">
+                            <div className="text-lg font-black" style={{ color: brandColor }}>
+                              {taxEngine?.formatCurrency(item.price)}
+                            </div>
+                          </div>
+                        </div>
+
                         {item.description && (
-                          <p className={cn('text-xs mt-1 line-clamp-2', subtext)}>{item.description}</p>
+                          <p className="mt-3 text-sm leading-relaxed text-slate-500">{item.description}</p>
                         )}
-                        <div className="flex items-center gap-3 mt-2">
-                          <span className="text-emerald-500 font-black text-sm">{taxEngine.formatCurrency(item.price)}</span>
-                          {item.preparationTime && (
-                            <span className={cn('text-[10px]', subtext)}>⏱ {item.preparationTime}m</span>
-                          )}
-                          {item.calories && (
-                            <span className={cn('text-[10px]', subtext)}>{item.calories} cal</span>
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-3">
+                        {item.preparationTime && (
+                          <span className="rounded-full bg-slate-50 px-3 py-1 text-[11px] font-medium text-slate-500">
+                            ⏱ {item.preparationTime} min
+                          </span>
+                        )}
+                        {item.calories && (
+                          <span className="rounded-full bg-slate-50 px-3 py-1 text-[11px] font-medium text-slate-500">
+                            {item.calories} cal
+                          </span>
+                        )}
+
+                        <div className="ml-auto">
+                          {!inCart ? (
+                            <button
+                              onClick={() => addToCart(item)}
+                              className="flex h-11 w-11 items-center justify-center rounded-full text-white shadow-sm transition-all active:scale-95"
+                              style={{ backgroundColor: brandColor }}
+                            >
+                              <Plus className="h-4 w-4" />
+                            </button>
+                          ) : (
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => updateQty(item.id, -1)}
+                                className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-slate-700"
+                              >
+                                <Minus className="h-3.5 w-3.5" />
+                              </button>
+                              <span className="w-6 text-center text-sm font-bold text-slate-950">{inCart.quantity}</span>
+                              <button
+                                onClick={() => updateQty(item.id, 1)}
+                                className="flex h-9 w-9 items-center justify-center rounded-full text-white"
+                                style={{ backgroundColor: brandColor }}
+                              >
+                                <Plus className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
                           )}
                         </div>
                       </div>
                     </div>
                   </div>
-                  <div className="flex-shrink-0 self-end">
-                    {!inCart ? (
-                      <button
-                        onClick={() => addToCart(item)}
-                        className="w-9 h-9 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white flex items-center justify-center transition-all active:scale-95"
-                      >
-                        <Plus className="w-4 h-4" />
-                      </button>
-                    ) : (
-                      <div className="flex items-center gap-2">
-                        <button onClick={() => updateQty(item.id, -1)} className="w-7 h-7 rounded-full bg-emerald-900/50 text-emerald-600 flex items-center justify-center">
-                          <Minus className="w-3 h-3" />
-                        </button>
-                        <span className={cn('w-5 text-center font-bold text-sm', text)}>{inCart.quantity}</span>
-                        <button onClick={() => updateQty(item.id, 1)} className="w-7 h-7 rounded-full bg-emerald-600 text-white flex items-center justify-center">
-                          <Plus className="w-3 h-3" />
-                        </button>
-                      </div>
-                    )}
-                  </div>
                 </div>
-              </div>
-            )
-          })}
+              )
+            })}
+          </div>
+
+          {tenant.invoiceFooter && (
+            <div className="mt-6 rounded-[24px] border border-slate-200 bg-white px-5 py-4 text-center text-sm text-slate-500">
+              {tenant.invoiceFooter}
+            </div>
+          )}
         </div>
       </div>
 
@@ -226,54 +490,61 @@ export default function PublicMenuPage({ params }: { params: { slug: string } })
       {cartOpen && (
         <div className="fixed inset-0 z-50 flex items-end">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setCartOpen(false)} />
-          <div className={cn('relative w-full max-w-lg mx-auto rounded-t-3xl p-6 space-y-4 max-h-[80vh] overflow-y-auto scrollbar-thin', darkMode ? 'bg-white' : 'bg-white')}>
+          <div className="relative mx-auto w-full max-w-xl rounded-t-[34px] bg-white p-6 shadow-[0_-20px_80px_rgba(15,23,42,0.18)]">
             <div className="flex items-center justify-between">
-              <h3 className={cn('text-lg font-black', text)}>Your Order</h3>
-              <button onClick={() => setCartOpen(false)} className={cn('w-8 h-8 rounded-full flex items-center justify-center', darkMode ? 'bg-emerald-900/40 text-emerald-600' : 'bg-gray-100 text-gray-600')}>
-                <X className="w-4 h-4" />
+              <div>
+                <h3 className="text-xl font-black text-slate-950">Your order</h3>
+                <p className="text-sm text-slate-500">{tenant.name}</p>
+              </div>
+              <button onClick={() => setCartOpen(false)} className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-slate-600">
+                <X className="h-4 w-4" />
               </button>
             </div>
 
-            <div className="space-y-3">
+            <div className="mt-6 space-y-4">
               {cart.map(item => (
                 <div key={item.id} className="flex items-center gap-3">
                   <div className="flex-1">
-                    <div className={cn('font-medium text-sm', text)}>{item.menuItem.name}</div>
-                    <div className={cn('text-xs', subtext)}>{taxEngine.formatCurrency(item.unitPrice)}</div>
+                    <div className="text-sm font-semibold text-slate-950">{item.menuItem.name}</div>
+                    <div className="text-xs text-slate-500">{taxEngine?.formatCurrency(item.unitPrice)}</div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <button onClick={() => updateQty(item.menuItemId, -1)} className="w-6 h-6 rounded-full bg-emerald-900/40 text-emerald-600 flex items-center justify-center">
-                      <Minus className="w-2.5 h-2.5" />
+                    <button onClick={() => updateQty(item.menuItemId, -1)} className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-100 text-slate-700">
+                      <Minus className="h-3 w-3" />
                     </button>
-                    <span className={cn('w-4 text-center font-bold text-sm', text)}>{item.quantity}</span>
-                    <button onClick={() => updateQty(item.menuItemId, 1)} className="w-6 h-6 rounded-full bg-emerald-600 text-white flex items-center justify-center">
-                      <Plus className="w-2.5 h-2.5" />
+                    <span className="w-4 text-center text-sm font-bold text-slate-950">{item.quantity}</span>
+                    <button onClick={() => updateQty(item.menuItemId, 1)} className="flex h-7 w-7 items-center justify-center rounded-full text-white" style={{ backgroundColor: brandColor }}>
+                      <Plus className="h-3 w-3" />
                     </button>
                   </div>
-                  <div className={cn('text-sm font-bold w-20 text-right', text)}>
-                    {taxEngine.formatCurrency(item.unitPrice * item.quantity)}
+                  <div className="w-20 text-right text-sm font-bold text-slate-950">
+                    {taxEngine?.formatCurrency(item.unitPrice * item.quantity)}
                   </div>
                 </div>
               ))}
             </div>
 
-            <div className={cn('border-t pt-3 space-y-1.5', darkMode ? 'border-gray-100' : 'border-gray-100')}>
-              <div className={cn('flex justify-between text-xs', subtext)}>
-                <span>Subtotal</span><span>{taxEngine.formatCurrency(subtotal)}</span>
+            <div className="mt-6 border-t border-slate-200 pt-4">
+              <div className="flex justify-between text-sm text-slate-500">
+                <span>Subtotal</span>
+                <span>{taxEngine?.formatCurrency(subtotal)}</span>
               </div>
-              <div className={cn('flex justify-between text-xs', subtext)}>
-                <span>{taxEngine.getVatLabel()}</span><span>{taxEngine.formatCurrency(vatAmount)}</span>
+              <div className="mt-2 flex justify-between text-sm text-slate-500">
+                <span>{taxEngine?.getVatLabel()}</span>
+                <span>{taxEngine?.formatCurrency(vatAmount)}</span>
               </div>
-              <div className={cn('flex justify-between font-black text-base', text)}>
-                <span>Total</span><span>{taxEngine.formatCurrency(total)}</span>
+              <div className="mt-3 flex justify-between text-lg font-black text-slate-950">
+                <span>Total</span>
+                <span>{taxEngine?.formatCurrency(total)}</span>
               </div>
             </div>
 
             <button
               onClick={placeOrder}
-              className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-base rounded-2xl transition-all"
+              className="mt-6 w-full rounded-[20px] py-4 text-base font-black text-white transition-all"
+              style={{ backgroundColor: brandColor }}
             >
-              Place Order · {taxEngine.formatCurrency(total)}
+              Place Order · {taxEngine?.formatCurrency(total)}
             </button>
           </div>
         </div>

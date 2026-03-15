@@ -1,0 +1,21 @@
+{
+  "name": "Buysial ERP",
+  "short_name": "BuysialERP",
+  "description": "Premium restaurant POS and management system",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f7f9f8",
+  "theme_color": "#059669",
+  "icons": [
+    {
+      "src": "/favicon.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/favicon.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

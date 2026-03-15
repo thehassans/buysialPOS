@@ -20,7 +20,20 @@ export default function QRMenuModule() {
 
   if (!currentTenant) return null
 
-  const menuUrl = `${typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000'}/menu/${currentTenant.slug}`
+  const menuUrl = `${typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000'}/menu/${encodeURIComponent(currentTenant.slug)}?${new URLSearchParams({
+    tenantId: currentTenant.id,
+    name: currentTenant.name,
+    countryCode: currentTenant.countryCode,
+    currency: currentTenant.currency,
+    vatRate: String(currentTenant.vatRate),
+    email: currentTenant.email,
+    phone: currentTenant.phone,
+    address: currentTenant.address,
+    vatNumber: currentTenant.vatNumber || '',
+    primaryColor: currentTenant.primaryColor || '#059669',
+    invoiceFooter: currentTenant.invoiceFooter || '',
+    logo: currentTenant.logo || '/logo.png',
+  }).toString()}`
 
   const generateQR = async () => {
     if (!canvasRef.current) return

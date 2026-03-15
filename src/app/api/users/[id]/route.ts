@@ -4,6 +4,12 @@ import { db } from '@/lib/db'
 export async function PATCH(req: Request, { params }: { params: { id: string } }) {
   try {
     const updates = await req.json()
+    if (updates.role === 'super_admin') {
+      return NextResponse.json(
+        { error: 'Super admin users must be configured through environment variables only.' },
+        { status: 400 }
+      )
+    }
     const { createdAt, ...rest } = updates
     const saved = await db.user.update({ where: { id: params.id }, data: rest })
     return NextResponse.json({ ...saved, createdAt: new Date(saved.createdAt) })
