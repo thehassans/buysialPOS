@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useAppStore } from '@/store/app-store'
 import { User, UserRole, Language } from '@/lib/types'
-import { cn, getInitials, ROLE_LABELS, ROLE_COLORS } from '@/lib/utils'
+import { cn, formatCurrency, getCurrencySymbol, getInitials, ROLE_LABELS, ROLE_COLORS } from '@/lib/utils'
 import {
   Users, DollarSign, Plus, LogIn, LogOut, CheckCircle,
   Pencil, Trash2, X, Save, Shield
@@ -33,6 +33,7 @@ export default function HRModule() {
   const tenantAttendance = attendance.filter(record => record.tenantId === tenantId && record.date === today)
   const presentUserIds = new Set(tenantAttendance.filter(record => !record.clockOut).map(record => record.userId))
   const monthlyPayroll = tenantUsers.reduce((sum, user) => sum + ((user.hourlyRate || 0) * 176), 0)
+  const currencySymbol = getCurrencySymbol(currentTenant?.currency || 'SAR')
 
   const toggleClockIn = (userId: string) => {
     toggleAttendance(userId)
@@ -93,7 +94,7 @@ export default function HRModule() {
         {[
           { label: 'Total Staff', value: tenantUsers.length, icon: Users, color: 'text-blue-600' },
           { label: 'Present Today', value: presentUserIds.size, icon: CheckCircle, color: 'text-emerald-600' },
-          { label: 'Monthly Payroll', value: `${currentTenant?.currency || 'SAR'} ${monthlyPayroll.toLocaleString()}`, icon: DollarSign, color: 'text-amber-600' },
+          { label: 'Monthly Payroll', value: formatCurrency(monthlyPayroll, currentTenant?.currency || 'SAR'), icon: DollarSign, color: 'text-amber-600' },
         ].map(stat => (
           <div key={stat.label} className="bg-white rounded-2xl shadow-sm p-4 border border-gray-200 flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center">
@@ -164,7 +165,7 @@ export default function HRModule() {
                 </span>
                 <div className="flex items-center gap-2">
                   {user.hourlyRate && user.hourlyRate > 0 && (
-                    <span className="text-slate-500 text-xs">{currentTenant?.currency || 'SAR'} {user.hourlyRate}/hr</span>
+                    <span className="text-slate-500 text-xs">{formatCurrency(user.hourlyRate, currentTenant?.currency || 'SAR')}/hr</span>
                   )}
                   {!user.isActive && <span className="text-[10px] text-red-500 font-medium">Inactive</span>}
                 </div>
@@ -248,10 +249,10 @@ export default function HRModule() {
                       </td>
                       <td className="px-4 py-3 text-emerald-500 text-sm">{ROLE_LABELS[user.role]}</td>
                       <td className="px-4 py-3 text-gray-900 text-sm">{hours}h</td>
-                      <td className="px-4 py-3 text-emerald-700 text-sm">{currentTenant?.currency || 'SAR'} {user.hourlyRate}</td>
-                      <td className="px-4 py-3 text-gray-900 font-medium text-sm">{currentTenant?.currency || 'SAR'} {gross.toLocaleString()}</td>
-                      <td className="px-4 py-3 text-red-600 text-sm">{currentTenant?.currency || 'SAR'} {deductions.toLocaleString()}</td>
-                      <td className="px-4 py-3 text-emerald-700 font-bold text-sm">{currentTenant?.currency || 'SAR'} {net.toLocaleString()}</td>
+                      <td className="px-4 py-3 text-emerald-700 text-sm">{formatCurrency(user.hourlyRate || 0, currentTenant?.currency || 'SAR')}</td>
+                      <td className="px-4 py-3 text-gray-900 font-medium text-sm">{formatCurrency(gross, currentTenant?.currency || 'SAR')}</td>
+                      <td className="px-4 py-3 text-red-600 text-sm">{formatCurrency(deductions, currentTenant?.currency || 'SAR')}</td>
+                      <td className="px-4 py-3 text-emerald-700 font-bold text-sm">{formatCurrency(net, currentTenant?.currency || 'SAR')}</td>
                     </tr>
                   )
                 })}
@@ -320,7 +321,7 @@ export default function HRModule() {
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-slate-600 block mb-1">Hourly Rate ({currentTenant?.currency || 'SAR'})</label>
+                  <label className="text-xs font-semibold text-slate-600 block mb-1">Hourly Rate ({currencySymbol})</label>
                   <input
                     type="number"
                     min="0"

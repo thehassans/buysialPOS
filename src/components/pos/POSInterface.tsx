@@ -2,7 +2,6 @@
 
 import { useState } from 'react'
 import { useAppStore } from '@/store/app-store'
-import { MOCK_CATEGORIES } from '@/lib/mock-data'
 import { MenuItem, OrderItem, Table, OrderType, Order } from '@/lib/types'
 import { TaxEngine } from '@/lib/country-config'
 import { cn } from '@/lib/utils'
@@ -16,7 +15,7 @@ import { useEffect } from 'react'
 import { getDevicePrintRole } from '@/lib/device-print'
 
 export default function POSInterface() {
-  const { currentTenant, currentUser, addOrder, updateOrder, menuItems, tables, reserveTable, editingOrder, setEditingOrder } = useAppStore()
+  const { currentTenant, currentUser, addOrder, updateOrder, categories, menuItems, tables, reserveTable, editingOrder, setEditingOrder } = useAppStore()
   const [orderType, setOrderType] = useState<OrderType>('dine_in')
   const [selectedTable, setSelectedTable] = useState<Table | null>(null)
   const [selectedCategory, setSelectedCategory] = useState<string>('all')
@@ -44,7 +43,19 @@ export default function POSInterface() {
 
   if (!currentTenant) return null
   const taxEngine = new TaxEngine(currentTenant.countryCode, currentTenant.vatRate)
-  const tenantCategories = MOCK_CATEGORIES.filter(category => category.tenantId === currentTenant.id)
+  const tenantCategories = [
+    ...categories.filter(category => category.tenantId === currentTenant.id),
+    ...Array.from(new Set(menuItems.filter(item => item.tenantId === currentTenant.id).map(item => item.categoryId)))
+      .filter(categoryId => !categories.some(category => category.id === categoryId))
+      .map((categoryId, index) => ({
+        id: categoryId,
+        tenantId: currentTenant.id,
+        name: categoryId.replace(/[-_]/g, ' ').replace(/\b\w/g, character => character.toUpperCase()),
+        icon: '🍽️',
+        sortOrder: categories.length + index + 1,
+        isActive: true,
+      })),
+  ].sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name))
   const deviceRole = getDevicePrintRole()
 
   const filteredItems = menuItems.filter(item => {

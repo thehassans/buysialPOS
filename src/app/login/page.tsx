@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAppStore } from '@/store/app-store'
 import Image from 'next/image'
@@ -18,12 +18,16 @@ const FEATURES = [
 
 export default function LoginPage() {
   const router = useRouter()
-  const { login, setCurrentUser, setCurrentTenant, setActiveView, setLanguage } = useAppStore()
+  const { login, initPlatformData, setCurrentUser, setCurrentTenant, setActiveView, setLanguage } = useAppStore()
   const [email, setEmail]           = useState('')
   const [password, setPassword]     = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading]   = useState(false)
   const [error, setError]           = useState('')
+
+  useEffect(() => {
+    initPlatformData()
+  }, [initPlatformData])
 
   const handleLogin = async () => {
     if (!email || !password) { setError('Please enter email and password'); return }

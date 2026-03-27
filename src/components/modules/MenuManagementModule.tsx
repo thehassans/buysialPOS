@@ -1,14 +1,13 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useRef, useState } from 'react'
 import { useAppStore } from '@/store/app-store'
-import { MenuItem } from '@/lib/types'
-import { cn } from '@/lib/utils'
+import { Category, MenuItem } from '@/lib/types'
+import { cn, formatCurrency, getCurrencySymbol, slugify } from '@/lib/utils'
 import {
   Plus, Pencil, Trash2, Search, X, Save, ImagePlus,
   Flame, DollarSign, Clock, Tag, Star, Sparkles, Eye, EyeOff
 } from 'lucide-react'
-import { MOCK_CATEGORIES } from '@/lib/mock-data'
 
 const EMPTY_FORM: Partial<MenuItem> = {
   name: '', nameAr: '', description: '', descriptionAr: '',
@@ -17,6 +16,8 @@ const EMPTY_FORM: Partial<MenuItem> = {
   isAvailable: true, isPopular: false, isNew: false,
   categoryId: '', image: '',
 }
+
+const DEFAULT_CATEGORY_ICON = '🍽️'
 
 async function convertToWebP(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -50,7 +51,7 @@ function Toggle({ enabled, onToggle }: { enabled: boolean; onToggle: () => void 
 }
 
 export default function MenuManagementModule() {
-  const { currentTenant, menuItems, addMenuItem, updateMenuItem, deleteMenuItem } = useAppStore()
+  const { currentTenant, menuItems, categories: storedCategories, addCategory, addMenuItem, updateMenuItem, deleteMenuItem } = useAppStore()
   const [search, setSearch] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('all')
   const [showModal, setShowModal] = useState(false)
@@ -59,12 +60,29 @@ export default function MenuManagementModule() {
   const [imagePreview, setImagePreview] = useState<string>('')
   const [converting, setConverting] = useState(false)
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
+  const [categoryMode, setCategoryMode] = useState<'existing' | 'new'>('existing')
+  const [newCategoryName, setNewCategoryName] = useState('')
+  const [newCategoryNameAr, setNewCategoryNameAr] = useState('')
+  const [newCategoryIcon, setNewCategoryIcon] = useState(DEFAULT_CATEGORY_ICON)
   const fileRef = useRef<HTMLInputElement>(null)
 
   if (!currentTenant) return null
 
   const tenantItems = menuItems.filter(m => m.tenantId === currentTenant.id)
-  const categories = MOCK_CATEGORIES.filter(c => c.tenantId === currentTenant.id)
+  const currencySymbol = getCurrencySymbol(currentTenant.currency)
+  const tenantCategories = storedCategories.filter(category => category.tenantId === currentTenant.id)
+  const derivedCategories: Category[] = Array.from(new Set(tenantItems.map(item => item.categoryId).filter(Boolean)))
+    .filter(categoryId => !tenantCategories.some(category => category.id === categoryId))
+    .map((categoryId, index) => ({
+      id: categoryId,
+      tenantId: currentTenant.id,
+      name: categoryId.replace(/[-_]/g, ' ').replace(/\b\w/g, character => character.toUpperCase()),
+      nameAr: undefined,
+      icon: DEFAULT_CATEGORY_ICON,
+      sortOrder: tenantCategories.length + index + 1,
+      isActive: true,
+    }))
+  const categories = [...tenantCategories, ...derivedCategories].sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name))
 
   const filtered = tenantItems.filter(item => {
     const matchSearch = !search || item.name.toLowerCase().includes(search.toLowerCase()) || item.nameAr?.includes(search)
@@ -76,6 +94,10 @@ export default function MenuManagementModule() {
     setEditingItem(null)
     setForm({ ...EMPTY_FORM, tenantId: currentTenant.id, categoryId: categories[0]?.id || '' })
     setImagePreview('')
+    setCategoryMode('existing')
+    setNewCategoryName('')
+    setNewCategoryNameAr('')
+    setNewCategoryIcon(DEFAULT_CATEGORY_ICON)
     setShowModal(true)
   }
 
@@ -83,6 +105,11 @@ export default function MenuManagementModule() {
     setEditingItem(item)
     setForm({ ...item })
     setImagePreview(item.image || '')
+    const existingCategory = categories.find(category => category.id === item.categoryId)
+    setCategoryMode(existingCategory ? 'existing' : 'new')
+    setNewCategoryName(existingCategory?.name || item.categoryId || '')
+    setNewCategoryNameAr(existingCategory?.nameAr || '')
+    setNewCategoryIcon(existingCategory?.icon || DEFAULT_CATEGORY_ICON)
     setShowModal(true)
   }
 
@@ -103,9 +130,29 @@ export default function MenuManagementModule() {
   }
 
   const handleSave = () => {
-    if (!form.name || !form.price || (form.hasHalfPlate && !form.halfPlatePrice)) return
+    const needsNewCategory = categoryMode === 'new'
+    const categoryName = newCategoryName.trim()
+    if (!form.name || !form.price || (form.hasHalfPlate && !form.halfPlatePrice) || (!form.categoryId && !needsNewCategory) || (needsNewCategory && !categoryName)) return
+    let resolvedCategoryId = form.categoryId || ''
+    if (needsNewCategory) {
+      resolvedCategoryId = `cat-${currentTenant.id}-${slugify(categoryName)}`
+      const existingCategory = categories.find(category => category.id === resolvedCategoryId)
+      if (!existingCategory) {
+        const createdCategory: Category = {
+          id: resolvedCategoryId,
+          tenantId: currentTenant.id,
+          name: categoryName,
+          nameAr: newCategoryNameAr.trim() || undefined,
+          icon: newCategoryIcon.trim() || DEFAULT_CATEGORY_ICON,
+          sortOrder: categories.length + 1,
+          isActive: true,
+        }
+        addCategory(createdCategory)
+      }
+    }
     const normalizedForm = {
       ...form,
+      categoryId: resolvedCategoryId,
       hasHalfPlate: !!form.hasHalfPlate,
       halfPlatePrice: form.hasHalfPlate ? form.halfPlatePrice : undefined,
     }
@@ -211,9 +258,9 @@ export default function MenuManagementModule() {
                   {item.nameAr && <div className="text-slate-400 text-xs truncate" dir="rtl">{item.nameAr}</div>}
                 </div>
                 <div className="text-right whitespace-nowrap">
-                  <div className="text-emerald-600 font-bold text-sm">{currentTenant.currency} {item.price}</div>
+                  <div className="text-emerald-600 font-bold text-sm">{formatCurrency(item.price, currentTenant.currency)}</div>
                   {item.hasHalfPlate && item.halfPlatePrice && (
-                    <div className="text-[10px] text-amber-600 font-semibold">Half {currentTenant.currency} {item.halfPlatePrice}</div>
+                    <div className="text-[10px] text-amber-600 font-semibold">Half {formatCurrency(item.halfPlatePrice, currentTenant.currency)}</div>
                   )}
                 </div>
               </div>
@@ -312,7 +359,7 @@ export default function MenuManagementModule() {
               {/* Price, Calories, Prep time */}
               <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <label className="text-xs font-semibold text-slate-600 block mb-1">Price ({currentTenant.currency}) *</label>
+                  <label className="text-xs font-semibold text-slate-600 block mb-1">Price ({currencySymbol}) *</label>
                   <input type="number" min="0" step="0.5" value={form.price || ''} onChange={e => setForm(f => ({ ...f, price: parseFloat(e.target.value) || 0 }))}
                     className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-emerald-400" />
                 </div>
@@ -342,7 +389,7 @@ export default function MenuManagementModule() {
                 </div>
 
                 <div>
-                  <label className="text-xs font-semibold text-slate-600 block mb-1">Half Plate Price ({currentTenant.currency})</label>
+                  <label className="text-xs font-semibold text-slate-600 block mb-1">Half Plate Price ({currencySymbol})</label>
                   <input
                     type="number"
                     min="0"
@@ -356,12 +403,65 @@ export default function MenuManagementModule() {
               </div>
 
               {/* Category */}
-              <div>
-                <label className="text-xs font-semibold text-slate-600 block mb-1">Category</label>
-                <select value={form.categoryId || ''} onChange={e => setForm(f => ({ ...f, categoryId: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-emerald-400 bg-white">
-                  {categories.map(c => <option key={c.id} value={c.id}>{c.icon} {c.name}</option>)}
-                </select>
+              <div className="space-y-3">
+                <label className="text-xs font-semibold text-slate-600 block">Category</label>
+                <div className="grid grid-cols-2 gap-2 rounded-xl bg-gray-50 p-1">
+                  <button
+                    type="button"
+                    onClick={() => setCategoryMode('existing')}
+                    className={cn('rounded-lg px-3 py-2 text-xs font-semibold transition-all', categoryMode === 'existing' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500')}
+                  >
+                    Choose existing
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCategoryMode('new')}
+                    className={cn('rounded-lg px-3 py-2 text-xs font-semibold transition-all', categoryMode === 'new' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500')}
+                  >
+                    Add category
+                  </button>
+                </div>
+
+                {categoryMode === 'existing' ? (
+                  <select value={form.categoryId || ''} onChange={e => setForm(f => ({ ...f, categoryId: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-emerald-400 bg-white">
+                    <option value="">Select category</option>
+                    {categories.map(c => <option key={c.id} value={c.id}>{c.icon || DEFAULT_CATEGORY_ICON} {c.name}</option>)}
+                  </select>
+                ) : (
+                  <div className="grid grid-cols-[88px_1fr] gap-3">
+                    <div>
+                      <label className="text-[11px] font-semibold text-slate-500 block mb-1">Icon</label>
+                      <input
+                        value={newCategoryIcon}
+                        onChange={e => setNewCategoryIcon(e.target.value || DEFAULT_CATEGORY_ICON)}
+                        className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm text-center focus:outline-none focus:border-emerald-400"
+                        placeholder="🍽️"
+                      />
+                    </div>
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                      <div>
+                        <label className="text-[11px] font-semibold text-slate-500 block mb-1">Name</label>
+                        <input
+                          value={newCategoryName}
+                          onChange={e => setNewCategoryName(e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-emerald-400"
+                          placeholder="e.g. Rice Bowls"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[11px] font-semibold text-slate-500 block mb-1">Name (AR)</label>
+                        <input
+                          value={newCategoryNameAr}
+                          onChange={e => setNewCategoryNameAr(e.target.value)}
+                          dir="rtl"
+                          className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-emerald-400"
+                          placeholder="أطباق الأرز"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Toggles */}
@@ -386,7 +486,7 @@ export default function MenuManagementModule() {
               </button>
               <button
                 onClick={handleSave}
-                disabled={!form.name || !form.price || (!!form.hasHalfPlate && !form.halfPlatePrice)}
+                disabled={!form.name || !form.price || (!!form.hasHalfPlate && !form.halfPlatePrice) || (categoryMode === 'existing' ? !form.categoryId : !newCategoryName.trim())}
                 className="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
                 <Save className="w-4 h-4" /> {editingItem ? 'Save Changes' : 'Add Item'}

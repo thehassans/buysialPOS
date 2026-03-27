@@ -3,12 +3,12 @@
 import { useState, useRef } from 'react'
 import QRCode from 'qrcode'
 import { useAppStore } from '@/store/app-store'
-import { MOCK_CATEGORIES, MOCK_MENU_ITEMS } from '@/lib/mock-data'
+import { MOCK_MENU_ITEMS } from '@/lib/mock-data'
 import { cn } from '@/lib/utils'
 import { QrCode, Download, Eye, ExternalLink, Sparkles, Copy, Check } from 'lucide-react'
 
 export default function QRMenuModule() {
-  const { currentTenant, menuItems } = useAppStore()
+  const { currentTenant, categories, menuItems } = useAppStore()
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null)
   const [qrGenerated, setQrGenerated] = useState(false)
@@ -23,15 +23,16 @@ export default function QRMenuModule() {
   const tenantMenuItems = menuItems.filter(item => item.tenantId === currentTenant.id)
   const fallbackTenantMenuItems = MOCK_MENU_ITEMS.filter(item => item.tenantId === currentTenant.id)
   const scopedMenuItems = tenantMenuItems.length > 0 ? tenantMenuItems : fallbackTenantMenuItems
-  const scopedMockCategories = MOCK_CATEGORIES
+  const scopedStoredCategories = categories
     .filter(category => category.tenantId === currentTenant.id)
     .filter(category => scopedMenuItems.some(item => item.categoryId === category.id))
-  const scopedCategories = scopedMockCategories.length > 0
-    ? scopedMockCategories
+  const scopedCategories = scopedStoredCategories.length > 0
+    ? scopedStoredCategories
     : Array.from(new Set(scopedMenuItems.map(item => item.categoryId).filter(Boolean))).map((categoryId, index) => ({
       id: categoryId,
       tenantId: currentTenant.id,
-      name: categoryId,
+      name: categoryId.replace(/[-_]/g, ' ').replace(/\b\w/g, character => character.toUpperCase()),
+      nameAr: undefined,
       icon: ['🍽️', '🥗', '🥘', '🍰', '🥤'][index % 5],
       sortOrder: index + 1,
       isActive: true,

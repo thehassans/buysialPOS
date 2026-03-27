@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
-import { User, Tenant, Order, OrderItem, MenuItem, Table, Theme, Language, InventoryItem, AttendanceRecord } from '@/lib/types'
-import { MOCK_USERS, MOCK_TENANTS, MOCK_ORDERS, MOCK_MENU_ITEMS, MOCK_TABLES, MOCK_INVENTORY, MOCK_ATTENDANCE } from '@/lib/mock-data'
+import { User, Tenant, Order, OrderItem, MenuItem, Table, Theme, Language, InventoryItem, AttendanceRecord, Category } from '@/lib/types'
+import { MOCK_USERS, MOCK_TENANTS, MOCK_ORDERS, MOCK_MENU_ITEMS, MOCK_TABLES, MOCK_INVENTORY, MOCK_ATTENDANCE, MOCK_CATEGORIES } from '@/lib/mock-data'
 import { apiSync } from '@/lib/sync-queue'
 
 interface AppState {
@@ -12,6 +12,7 @@ interface AppState {
   language: Language
   orders: Order[]
   users: User[]
+  categories: Category[]
   menuItems: MenuItem[]
   tables: Table[]
   inventoryItems: InventoryItem[]
@@ -30,6 +31,7 @@ interface AppState {
   logout: () => void
   addTenant: (tenant: Tenant) => void
   updateTenant: (id: string, updates: Partial<Tenant>) => void
+  addCategory: (category: Category) => void
   setEditingOrder: (order: Order | null) => void
   addOrder: (order: Order) => void
   updateOrder: (id: string, updates: Partial<Order>) => void
@@ -46,6 +48,7 @@ interface AppState {
   toggleAttendance: (userId: string) => void
   reserveTable: (tableNumber: number, orderId: string) => void
   releaseTable: (tableNumber: number) => void
+  initPlatformData: () => Promise<void>
   initFromDB: () => Promise<void>
 }
 
@@ -59,6 +62,7 @@ export const useAppStore = create<AppState>()(
       language: 'en',
       orders: MOCK_ORDERS,
       users: MOCK_USERS,
+      categories: MOCK_CATEGORIES,
       menuItems: MOCK_MENU_ITEMS,
       tables: MOCK_TABLES,
       inventoryItems: MOCK_INVENTORY,
@@ -96,8 +100,18 @@ export const useAppStore = create<AppState>()(
 
       logout: () => set({ currentUser: null, currentTenant: null }),
 
-      addTenant: (tenant) => set((state) => ({ tenants: [...state.tenants, tenant] })),
-      updateTenant: (id, updates) => set((state) => ({ tenants: state.tenants.map(t => t.id === id ? { ...t, ...updates } : t) })),
+      addTenant: (tenant) => {
+        set((state) => ({ tenants: [...state.tenants.filter(existing => existing.id !== tenant.id), tenant] }))
+        apiSync('/api/tenants', 'POST', tenant)
+      },
+      updateTenant: (id, updates) => {
+        set((state) => ({ tenants: state.tenants.map(t => t.id === id ? { ...t, ...updates } : t) }))
+        apiSync(`/api/tenants/${id}`, 'PATCH', updates)
+      },
+      addCategory: (category) => {
+        set((state) => ({ categories: [...state.categories.filter(existing => existing.id !== category.id), category] }))
+        apiSync('/api/categories', 'POST', category)
+      },
 
       setEditingOrder: (order) => set({ editingOrder: order }),
 
@@ -206,22 +220,73 @@ export const useAppStore = create<AppState>()(
         )
       })),
 
+      initPlatformData: async () => {
+        try {
+          const existingUsers = get().users
+          const existingTenants = get().tenants
+          const existingCurrentTenant = get().currentTenant
+          const [tenantsRes, usersRes] = await Promise.all([
+            fetch('/api/tenants'),
+            fetch('/api/users'),
+          ])
+          if (!tenantsRes.ok || !usersRes.ok) return
+          const [tenants, users] = await Promise.all([
+            tenantsRes.json(),
+            usersRes.json(),
+          ])
+          const parsedTenants = tenants.map((tenant: Tenant) => ({
+            ...tenant,
+            createdAt: new Date(tenant.createdAt),
+            validUntil: tenant.validUntil ? new Date(tenant.validUntil) : undefined,
+          }))
+          const parsedUsers = users.filter((u: any) => u.role !== 'super_admin').map((u: any) => {
+            const localUser = existingUsers.find(existing => existing.id === u.id || existing.email.toLowerCase() === u.email.toLowerCase())
+            return {
+              ...localUser,
+              ...u,
+              createdAt: new Date(u.createdAt),
+              password: u.password ?? localUser?.password,
+            }
+          })
+          const mergedCurrentTenant = existingCurrentTenant
+            ? parsedTenants.find((tenant: Tenant) => tenant.id === existingCurrentTenant.id) || existingCurrentTenant
+            : existingCurrentTenant
+          if (parsedTenants.length === 0 && existingTenants.length > 0) {
+            existingTenants.forEach(tenant => apiSync('/api/tenants', 'POST', tenant))
+          }
+          if (parsedUsers.length === 0 && existingUsers.length > 0) {
+            existingUsers.filter(user => user.role !== 'super_admin').forEach(user => apiSync('/api/users', 'POST', user))
+          }
+          set({
+            currentTenant: mergedCurrentTenant,
+            tenants: parsedTenants.length > 0 ? parsedTenants : existingTenants,
+            users: parsedUsers.length > 0
+              ? [...existingUsers.filter(user => !parsedUsers.some((parsedUser: User) => parsedUser.id === user.id)), ...parsedUsers]
+              : existingUsers,
+          })
+        } catch (e) {
+          console.error('initPlatformData failed (using localStorage):', e)
+        }
+      },
+
       initFromDB: async () => {
         try {
           const tenantId = get().currentTenant?.id
           if (!tenantId) return
           const existingUsers = get().users
           const existingOrders = get().orders
+          const existingCategories = get().categories
           const existingMenuItems = get().menuItems
           const existingCurrentUser = get().currentUser
-          const [ordersRes, menuRes, usersRes] = await Promise.all([
+          const [ordersRes, menuRes, usersRes, categoriesRes] = await Promise.all([
             fetch(`/api/orders?tenantId=${tenantId}`),
             fetch(`/api/menu-items?tenantId=${tenantId}`),
             fetch(`/api/users?tenantId=${tenantId}`),
+            fetch(`/api/categories?tenantId=${tenantId}`),
           ])
-          if (!ordersRes.ok || !menuRes.ok || !usersRes.ok) return
-          const [orders, menuItems, users] = await Promise.all([
-            ordersRes.json(), menuRes.json(), usersRes.json(),
+          if (!ordersRes.ok || !menuRes.ok || !usersRes.ok || !categoriesRes.ok) return
+          const [orders, menuItems, users, categories] = await Promise.all([
+            ordersRes.json(), menuRes.json(), usersRes.json(), categoriesRes.json(),
           ])
           const parsedOrders = orders.map((o: any) => ({ ...o, createdAt: new Date(o.createdAt), updatedAt: new Date(o.updatedAt) }))
           const parsedUsers = users.filter((u: any) => u.role !== 'super_admin').map((u: any) => {
@@ -242,12 +307,29 @@ export const useAppStore = create<AppState>()(
               halfPlatePrice: item.halfPlatePrice ?? localItem?.halfPlatePrice,
             }
           })
+          const parsedCategories = categories.map((category: Category) => ({
+            ...category,
+            sortOrder: Number(category.sortOrder ?? 0),
+          }))
+          if (parsedOrders.length === 0) {
+            existingOrders.filter(order => order.tenantId === tenantId).forEach(order => apiSync('/api/orders', 'POST', order))
+          }
+          if (parsedUsers.length === 0) {
+            existingUsers.filter(user => user.tenantId === tenantId && user.role !== 'super_admin').forEach(user => apiSync('/api/users', 'POST', user))
+          }
+          if (parsedCategories.length === 0) {
+            existingCategories.filter(category => category.tenantId === tenantId).forEach(category => apiSync('/api/categories', 'POST', category))
+          }
+          if (parsedMenuItems.length === 0) {
+            existingMenuItems.filter(item => item.tenantId === tenantId).forEach(item => apiSync('/api/menu-items', 'POST', item))
+          }
           const mergedCurrentUser = existingCurrentUser && existingCurrentUser.tenantId === tenantId
             ? parsedUsers.find((user: User) => user.id === existingCurrentUser.id) || existingCurrentUser
             : existingCurrentUser
           set({
             currentUser: mergedCurrentUser,
             orders: [...existingOrders.filter(order => order.tenantId !== tenantId), ...parsedOrders].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
+            categories: [...existingCategories.filter(category => category.tenantId !== tenantId), ...parsedCategories],
             menuItems: [...existingMenuItems.filter(item => item.tenantId !== tenantId), ...parsedMenuItems],
             users: [...existingUsers.filter(user => user.tenantId !== tenantId), ...parsedUsers],
           })
@@ -285,6 +367,7 @@ export const useAppStore = create<AppState>()(
         sidebarOpen: state.sidebarOpen,
         orders: state.orders,
         users: state.users,
+        categories: state.categories,
         menuItems: state.menuItems,
         tables: state.tables,
         inventoryItems: state.inventoryItems,

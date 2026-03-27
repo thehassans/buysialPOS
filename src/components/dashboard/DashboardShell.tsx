@@ -20,7 +20,7 @@ import WaiterOrders from '../pos/WaiterOrders'
 import MenuManagementModule from '../modules/MenuManagementModule'
 
 export default function DashboardShell() {
-  const { currentUser, currentTenant, activeView, sidebarOpen, language, initFromDB } = useAppStore()
+  const { currentUser, currentTenant, activeView, sidebarOpen, language, initPlatformData, initFromDB } = useAppStore()
   const router = useRouter()
   const [mounted, setMounted] = useState(false)
 
@@ -33,12 +33,12 @@ export default function DashboardShell() {
   }, [mounted, currentUser])
 
   useEffect(() => {
-    if (currentUser && currentTenant) {
-      fetch('/api/seed', { method: 'POST' })
-        .then(() => initFromDB())
-        .catch(() => initFromDB())
+    if (!currentUser) return
+    initPlatformData()
+    if (currentTenant) {
+      initFromDB()
     }
-  }, [currentUser?.id, currentTenant?.id])
+  }, [currentUser?.id, currentTenant?.id, initPlatformData, initFromDB])
 
   useEffect(() => {
     if (!currentUser || !currentTenant || currentUser.role === 'super_admin') return

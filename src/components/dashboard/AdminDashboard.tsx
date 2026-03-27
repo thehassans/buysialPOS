@@ -9,15 +9,15 @@ import {
   Tooltip, ResponsiveContainer, PieChart, Pie, Cell
 } from 'recharts'
 import { useAppStore } from '@/store/app-store'
-import { MOCK_CATEGORIES } from '@/lib/mock-data'
 import { TaxEngine } from '@/lib/country-config'
-import { cn } from '@/lib/utils'
+import { cn, getCurrencySymbol } from '@/lib/utils'
 import { buildRecentTrend, filterOrdersByPeriod, filterOrdersByTenant, getRevenue } from '@/lib/analytics'
 
 export default function AdminDashboard() {
-  const { currentTenant, orders, inventoryItems, attendance, users } = useAppStore()
+  const { currentTenant, orders, inventoryItems, attendance, users, categories } = useAppStore()
   if (!currentTenant) return null
   const taxEngine = new TaxEngine(currentTenant.countryCode, currentTenant.vatRate)
+  const currencySymbol = getCurrencySymbol(currentTenant.currency)
   const tenantOrders = filterOrdersByTenant(orders, currentTenant.id)
   const todayOrders = filterOrdersByPeriod(tenantOrders, 'today')
   const tenantInventory = inventoryItems.filter(item => item.tenantId === currentTenant.id)
@@ -33,7 +33,12 @@ export default function AdminDashboard() {
   const activeOrders = tenantOrders.filter(order => !['completed', 'cancelled'].includes(order.status))
   const todayRevenue = getRevenue(todayOrders)
   const weeklyData = buildRecentTrend(tenantOrders, 7)
-  const categoryLookup = new Map(MOCK_CATEGORIES.filter(category => category.tenantId === currentTenant.id).map(category => [category.id, category.name]))
+  const categoryLookup = new Map([
+    ...categories.filter(category => category.tenantId === currentTenant.id).map(category => [category.id, category.name] as const),
+    ...Array.from(new Set(tenantOrders.flatMap(order => order.items.map(item => item.menuItem?.categoryId).filter(Boolean))))
+      .filter(categoryId => !categories.some(category => category.id === categoryId))
+      .map(categoryId => [categoryId as string, String(categoryId).replace(/[-_]/g, ' ').replace(/\b\w/g, character => character.toUpperCase())] as const),
+  ])
   const categoryBaseColors = ['#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ec4899', '#ef4444']
   const categoryTotals = new Map<string, { name: string; quantity: number }>()
   for (const order of tenantOrders) {
@@ -138,7 +143,7 @@ export default function AdminDashboard() {
               <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
               <XAxis dataKey="day" tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} />
               <YAxis yAxisId="orders" orientation="left" tick={{ fill: '#64748b', fontSize: 10 }} axisLine={false} />
-              <YAxis yAxisId="revenue" orientation="right" tick={{ fill: '#d97706', fontSize: 10 }} tickFormatter={v => `${currentTenant.currency} ${(v / 1000).toFixed(0)}k`} axisLine={false} />
+              <YAxis yAxisId="revenue" orientation="right" tick={{ fill: '#d97706', fontSize: 10 }} tickFormatter={v => `${currencySymbol} ${(v / 1000).toFixed(0)}k`} axisLine={false} />
               <Tooltip
                 contentStyle={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', fontSize: '12px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }}
                 labelStyle={{ color: '#0f172a' }}

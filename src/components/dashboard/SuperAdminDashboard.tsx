@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useAppStore } from '@/store/app-store'
 import {
   Building2, TrendingUp, Users, DollarSign, Activity,
   Globe, CheckCircle, AlertCircle, ArrowUpRight, Crown,
@@ -11,7 +12,7 @@ import {
   Tooltip, ResponsiveContainer, Legend, LineChart, Line
 } from 'recharts'
 import { MOCK_TENANTS, REVENUE_DATA, SUBSCRIPTION_GROWTH, SUBSCRIPTION_PLANS } from '@/lib/mock-data'
-import { cn } from '@/lib/utils'
+import { cn, getCurrencySymbol } from '@/lib/utils'
 
 const TENANT_MAP_POSITIONS = [
   { id: 't1', x: 48, y: 42, city: 'Riyadh' },
@@ -25,16 +26,18 @@ const TENANT_MAP_POSITIONS = [
 
 export default function SuperAdminDashboard() {
   const [selectedPeriod, setSelectedPeriod] = useState<'7d' | '30d' | '12m'>('12m')
-  const activeTenants = MOCK_TENANTS.filter(t => t.isActive).length
+  const { tenants } = useAppStore()
+  const allTenants = tenants.length > 0 ? tenants : MOCK_TENANTS
+  const activeTenants = allTenants.filter(t => t.isActive).length
   const totalRevenue = 2089400
   const totalUsers = 87
 
-  const ksaCount = MOCK_TENANTS.filter(t => t.countryCode === 'KSA').length
-  const uaeCount = MOCK_TENANTS.filter(t => t.countryCode === 'UAE').length
-  const omnCount = MOCK_TENANTS.filter(t => t.countryCode === 'OMN').length
+  const ksaCount = allTenants.filter(t => t.countryCode === 'KSA').length
+  const uaeCount = allTenants.filter(t => t.countryCode === 'UAE').length
+  const omnCount = allTenants.filter(t => t.countryCode === 'OMN').length
 
   const statsCards = [
-    { label: 'Active Tenants', value: activeTenants, sub: `${MOCK_TENANTS.length} total registered`, icon: Building2, color: 'text-emerald-600', bg: 'bg-emerald-50 border-emerald-200' },
+    { label: 'Active Tenants', value: activeTenants, sub: `${allTenants.length} total registered`, icon: Building2, color: 'text-emerald-600', bg: 'bg-emerald-50 border-emerald-200' },
     { label: 'Platform Revenue', value: `$${(totalRevenue / 1000).toFixed(0)}k`, sub: '+18.4% vs last month', icon: DollarSign, color: 'text-amber-600', bg: 'bg-amber-50 border-amber-200' },
     { label: 'Total Users', value: totalUsers, sub: 'Across all tenants', icon: Users, color: 'text-blue-600', bg: 'bg-blue-50 border-blue-200' },
     { label: 'Countries', value: 3, sub: `🇸🇦 ${ksaCount} · 🇦🇪 ${uaeCount} · 🇴🇲 ${omnCount}`, icon: Globe, color: 'text-purple-600', bg: 'bg-purple-50 border-purple-200' },
@@ -162,7 +165,7 @@ export default function SuperAdminDashboard() {
             <div className="absolute top-4 right-4 text-gray-500 text-[10px] font-medium">🇴🇲 Oman</div>
 
             {TENANT_MAP_POSITIONS.map(pos => {
-              const tenant = MOCK_TENANTS.find(t => t.id === pos.id)
+              const tenant = allTenants.find(t => t.id === pos.id)
               if (!tenant) return null
               return (
                 <div
@@ -192,7 +195,7 @@ export default function SuperAdminDashboard() {
         <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm">
           <h3 className="text-gray-900 font-semibold mb-4">Recent Tenants</h3>
           <div className="space-y-3">
-            {MOCK_TENANTS.map(tenant => (
+            {allTenants.map(tenant => (
               <div key={tenant.id} className="flex items-center gap-3 p-3 rounded-xl bg-gray-50 hover:bg-emerald-50 transition-all cursor-pointer">
                 <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-emerald-500 to-emerald-700 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
                   {tenant.name.charAt(0)}
@@ -202,7 +205,7 @@ export default function SuperAdminDashboard() {
                   <div className="text-slate-500 text-xs flex items-center gap-1">
                     <span>{tenant.countryCode === 'KSA' ? '🇸🇦' : tenant.countryCode === 'UAE' ? '🇦🇪' : '🇴🇲'} {tenant.countryCode === 'OMN' ? 'Oman' : tenant.countryCode}</span>
                     <span>·</span>
-                    <span>{tenant.currency}</span>
+                    <span>{getCurrencySymbol(tenant.currency)}</span>
                   </div>
                 </div>
                 <div className="flex flex-col items-end gap-1">

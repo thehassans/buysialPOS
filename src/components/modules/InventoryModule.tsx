@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { MOCK_SUPPLIERS } from '@/lib/mock-data'
 import { useAppStore } from '@/store/app-store'
 import { InventoryItem } from '@/lib/types'
-import { cn } from '@/lib/utils'
+import { cn, formatCurrency, getCurrencySymbol } from '@/lib/utils'
 import { Package, AlertTriangle, Plus, Search, Truck, Pencil, Trash2, X, Save } from 'lucide-react'
 
 const EMPTY_FORM: Partial<InventoryItem> = {
@@ -31,6 +31,7 @@ export default function InventoryModule() {
 
   const tenantInventory = inventoryItems.filter(item => item.tenantId === currentTenant.id)
   const tenantSuppliers = MOCK_SUPPLIERS.filter(supplier => supplier.tenantId === currentTenant.id)
+  const currencySymbol = getCurrencySymbol(currentTenant.currency)
   const filtered = tenantInventory.filter(item =>
     item.name.toLowerCase().includes(search.toLowerCase()) ||
     item.category.toLowerCase().includes(search.toLowerCase()) ||
@@ -168,7 +169,7 @@ export default function InventoryModule() {
                           </div>
                         </td>
                         <td className="px-4 py-3 text-emerald-500 text-sm">{item.minQuantity} {item.unit}</td>
-                        <td className="px-4 py-3 text-emerald-700 text-sm">{currentTenant.currency} {item.costPerUnit}</td>
+                        <td className="px-4 py-3 text-emerald-700 text-sm">{formatCurrency(item.costPerUnit, currentTenant.currency)}</td>
                         <td className="px-4 py-3">
                           <span className={cn(
                             'text-[10px] px-2 py-0.5 rounded-full font-medium border',
@@ -271,7 +272,7 @@ export default function InventoryModule() {
                 <input type="number" min="0" value={form.minQuantity ?? ''} onChange={e => setForm(f => ({ ...f, minQuantity: Number(e.target.value) || 0 }))} className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-emerald-400" />
               </div>
               <div className="col-span-2">
-                <label className="text-xs font-semibold text-slate-600 block mb-1">Unit Cost ({currentTenant.currency})</label>
+                <label className="text-xs font-semibold text-slate-600 block mb-1">Unit Cost ({currencySymbol})</label>
                 <input type="number" min="0" step="0.01" value={form.costPerUnit ?? ''} onChange={e => setForm(f => ({ ...f, costPerUnit: Number(e.target.value) || 0 }))} className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-emerald-400" />
               </div>
             </div>

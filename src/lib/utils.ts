@@ -1,11 +1,22 @@
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
+import { Currency } from './types'
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-export function formatCurrency(amount: number, currency: string, symbol: string): string {
+const CURRENCY_SYMBOLS: Record<Currency, string> = {
+  SAR: '\u20C1',
+  AED: 'د.إ',
+  OMR: 'ر.ع.',
+}
+
+export function getCurrencySymbol(currency: Currency | string): string {
+  return CURRENCY_SYMBOLS[currency as Currency] || currency
+}
+
+export function formatCurrency(amount: number, currency: Currency | string, symbol: string = getCurrencySymbol(currency)): string {
   return `${symbol} ${amount.toLocaleString('en', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }
 

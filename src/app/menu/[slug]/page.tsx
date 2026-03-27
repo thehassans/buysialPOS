@@ -2,11 +2,11 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { MOCK_TENANTS, MOCK_CATEGORIES, MOCK_MENU_ITEMS } from '@/lib/mock-data'
+import { MOCK_TENANTS, MOCK_MENU_ITEMS } from '@/lib/mock-data'
 import { TaxEngine } from '@/lib/country-config'
-import { cn } from '@/lib/utils'
+import { cn, getCurrencySymbol } from '@/lib/utils'
 import { ShoppingCart, Plus, Minus, Search, Flame, Sparkles, X, ChefHat, MapPin, Phone } from 'lucide-react'
-import { MenuItem, MenuPortion, OrderItem, Tenant } from '@/lib/types'
+import { Category, MenuItem, MenuPortion, OrderItem, Tenant } from '@/lib/types'
 
 const COUNTRY_META = {
   KSA: { flag: '🇸🇦', label: 'Saudi Arabia' },
@@ -45,8 +45,6 @@ function buildTenantFromQuery(searchParams: URLSearchParams, slug: string): Tena
 }
 
 function formatCategoryName(categoryId: string) {
-  const knownCategory = MOCK_CATEGORIES.find(category => category.id === categoryId)
-  if (knownCategory) return knownCategory.name
   return categoryId
     .replace(/[-_]/g, ' ')
     .replace(/\b\w/g, character => character.toUpperCase())
@@ -69,6 +67,7 @@ export default function PublicMenuPage({ params }: { params: { slug: string } })
   const [search, setSearch] = useState('')
   const [orderPlaced, setOrderPlaced] = useState(false)
   const [menuItems, setMenuItems] = useState<MenuItem[]>([])
+  const [categories, setCategories] = useState<Category[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [usingFallbackMenu, setUsingFallbackMenu] = useState(false)
   const searchParams = useSearchParams()
@@ -81,6 +80,7 @@ export default function PublicMenuPage({ params }: { params: { slug: string } })
   const tenantId = searchParams.get('tenantId') || tenant?.id || null
   const tenantLogo = tenant?.logo || searchParams.get('logo') || '/logo.png'
   const brandColor = tenant?.primaryColor || '#059669'
+  const currencySymbol = tenant ? getCurrencySymbol(tenant.currency) : ''
   const taxEngine = tenant ? new TaxEngine(tenant.countryCode, tenant.vatRate) : null
 
   useEffect(() => {
@@ -97,23 +97,35 @@ export default function PublicMenuPage({ params }: { params: { slug: string } })
       setUsingFallbackMenu(false)
 
       try {
-        const response = await fetch(`/api/menu-items?tenantId=${encodeURIComponent(tenantId)}`)
-        if (!response.ok) throw new Error('Failed to fetch menu')
-        const data = await response.json()
+        const [menuResponse, categoriesResponse] = await Promise.all([
+          fetch(`/api/menu-items?tenantId=${encodeURIComponent(tenantId)}`),
+          fetch(`/api/categories?tenantId=${encodeURIComponent(tenantId)}`),
+        ])
+        if (!menuResponse.ok) throw new Error('Failed to fetch menu')
+        const [data, categoryData] = await Promise.all([
+          menuResponse.json(),
+          categoriesResponse.ok ? categoriesResponse.json() : Promise.resolve([]),
+        ])
         if (cancelled) return
         const scopedItems = Array.isArray(data)
           ? data.filter((item: MenuItem) => item.tenantId === tenantId && item.isAvailable)
           : []
+        const scopedCategories = Array.isArray(categoryData)
+          ? categoryData.filter((category: Category) => category.tenantId === tenantId)
+          : []
+        setCategories(scopedCategories)
 
         if (scopedItems.length > 0) {
           setMenuItems(scopedItems)
         } else {
           setUsingFallbackMenu(true)
+          setCategories([])
           setMenuItems(MOCK_MENU_ITEMS.filter(item => item.tenantId === tenantId && item.isAvailable))
         }
       } catch {
         if (cancelled) return
         setUsingFallbackMenu(true)
+        setCategories([])
         setMenuItems(MOCK_MENU_ITEMS.filter(item => item.tenantId === tenantId && item.isAvailable))
       } finally {
         if (!cancelled) setIsLoading(false)
@@ -127,9 +139,8 @@ export default function PublicMenuPage({ params }: { params: { slug: string } })
     }
   }, [tenantId])
 
-  const categories = useMemo(() => {
-    const scopedCategories = MOCK_CATEGORIES
-      .filter(category => category.tenantId === tenantId)
+  const availableCategories = useMemo(() => {
+    const scopedCategories = categories
       .filter(category => menuItems.some(item => item.categoryId === category.id))
 
     if (scopedCategories.length > 0) return scopedCategories
@@ -143,7 +154,7 @@ export default function PublicMenuPage({ params }: { params: { slug: string } })
       sortOrder: index + 1,
       isActive: true,
     }))
-  }, [menuItems, tenantId])
+  }, [categories, menuItems, tenantId])
 
   const filteredItems = useMemo(() => {
     return menuItems.filter(item => {
@@ -260,7 +271,7 @@ export default function PublicMenuPage({ params }: { params: { slug: string } })
               <div className="min-w-0">
                 <h1 className="text-2xl font-black text-slate-950 sm:text-3xl">{tenant.name}</h1>
                 <p className="mt-1 text-sm text-slate-500">{country?.flag} {country?.label}</p>
-                <p className="mt-1 text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">{tenant.currency} menu</p>
+                <p className="mt-1 text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">{currencySymbol} menu</p>
               </div>
             </div>
 
@@ -295,7 +306,7 @@ export default function PublicMenuPage({ params }: { params: { slug: string } })
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <div className="text-lg font-black text-slate-950">{menuItems.length} dishes</div>
-                <div className="mt-1 text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">All prices in {tenant.currency}</div>
+                <div className="mt-1 text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">All prices in {currencySymbol}</div>
               </div>
               {cartCount > 0 && (
                 <button
@@ -326,20 +337,20 @@ export default function PublicMenuPage({ params }: { params: { slug: string } })
             <button
               onClick={() => setActiveCategory('all')}
               className={cn(
-                'rounded-full border px-4 py-2 text-sm font-medium whitespace-nowrap transition-all',
-                activeCategory === 'all' ? 'border-transparent text-white shadow-sm' : 'border-slate-200 bg-white text-slate-600'
+                'rounded-full px-4 py-2 text-sm font-semibold transition-all',
+                activeCategory === 'all' ? 'text-white shadow-lg' : 'border border-slate-200 bg-white text-slate-600 hover:border-emerald-200'
               )}
               style={activeCategory === 'all' ? { backgroundColor: brandColor } : undefined}
             >
               All
             </button>
-            {categories.map(category => (
+            {availableCategories.map(category => (
               <button
                 key={category.id}
                 onClick={() => setActiveCategory(category.id)}
                 className={cn(
-                  'rounded-full border px-4 py-2 text-sm font-medium whitespace-nowrap transition-all',
-                  activeCategory === category.id ? 'border-transparent text-white shadow-sm' : 'border-slate-200 bg-white text-slate-600'
+                  'rounded-full px-4 py-2 text-sm font-semibold transition-all',
+                  activeCategory === category.id ? 'text-white shadow-lg' : 'border border-slate-200 bg-white text-slate-600 hover:border-emerald-200'
                 )}
                 style={activeCategory === category.id ? { backgroundColor: brandColor } : undefined}
               >

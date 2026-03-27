@@ -1,4 +1,5 @@
 import { CountryCode, CountryConfig } from './types'
+import { formatCurrency as formatAmount, getCurrencySymbol } from './utils'
 
 export const COUNTRY_CONFIGS: Record<CountryCode, CountryConfig> = {
   OMN: {
@@ -17,7 +18,7 @@ export const COUNTRY_CONFIGS: Record<CountryCode, CountryConfig> = {
     code: 'KSA',
     name: 'Saudi Arabia',
     currency: 'SAR',
-    currencySymbol: 'ر.س',
+    currencySymbol: getCurrencySymbol('SAR'),
     vatRate: 0.15,
     locale: 'ar-SA',
     direction: 'rtl',
@@ -72,7 +73,7 @@ export class TaxEngine {
 
   formatCurrency(amount: number): string {
     const config = COUNTRY_CONFIGS[this.countryCode]
-    return `${config.currencySymbol} ${amount.toFixed(2)}`
+    return formatAmount(amount, config.currency, config.currencySymbol)
   }
 }
 
