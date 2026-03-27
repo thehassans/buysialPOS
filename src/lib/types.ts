@@ -3,6 +3,7 @@ export type Currency = 'SAR' | 'AED' | 'OMR'
 export type UserRole = 'super_admin' | 'admin' | 'manager' | 'cashier' | 'waiter' | 'chef'
 export type OrderStatus = 'pending' | 'preparing' | 'ready' | 'served' | 'completed' | 'cancelled'
 export type OrderType = 'dine_in' | 'takeaway'
+export type MenuPortion = 'full' | 'half'
 export type Language = 'en' | 'ar'
 export type Theme = 'dark' | 'light'
 export type SubscriptionPlan = 'starter' | 'professional' | 'enterprise'
@@ -74,6 +75,8 @@ export interface MenuItem {
   description?: string
   descriptionAr?: string
   price: number
+  hasHalfPlate?: boolean
+  halfPlatePrice?: number
   image?: string
   isAvailable: boolean
   preparationTime?: number
@@ -87,6 +90,7 @@ export interface OrderItem {
   id: string
   menuItemId: string
   menuItem: MenuItem
+  portionType?: MenuPortion
   quantity: number
   unitPrice: number
   notes?: string

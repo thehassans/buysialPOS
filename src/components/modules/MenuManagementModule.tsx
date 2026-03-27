@@ -13,6 +13,7 @@ import { MOCK_CATEGORIES } from '@/lib/mock-data'
 const EMPTY_FORM: Partial<MenuItem> = {
   name: '', nameAr: '', description: '', descriptionAr: '',
   price: 0, calories: 0, preparationTime: 0,
+  hasHalfPlate: false, halfPlatePrice: 0,
   isAvailable: true, isPopular: false, isNew: false,
   categoryId: '', image: '',
 }
@@ -102,12 +103,17 @@ export default function MenuManagementModule() {
   }
 
   const handleSave = () => {
-    if (!form.name || !form.price) return
+    if (!form.name || !form.price || (form.hasHalfPlate && !form.halfPlatePrice)) return
+    const normalizedForm = {
+      ...form,
+      hasHalfPlate: !!form.hasHalfPlate,
+      halfPlatePrice: form.hasHalfPlate ? form.halfPlatePrice : undefined,
+    }
     if (editingItem) {
-      updateMenuItem(editingItem.id, form)
+      updateMenuItem(editingItem.id, normalizedForm)
     } else {
       addMenuItem({
-        ...form,
+        ...normalizedForm,
         id: `m-${Date.now()}`,
         tenantId: currentTenant.id,
         isAvailable: form.isAvailable ?? true,
@@ -204,8 +210,11 @@ export default function MenuManagementModule() {
                   <div className="font-semibold text-gray-900 text-sm truncate">{item.name}</div>
                   {item.nameAr && <div className="text-slate-400 text-xs truncate" dir="rtl">{item.nameAr}</div>}
                 </div>
-                <div className="text-emerald-600 font-bold text-sm whitespace-nowrap">
-                  {currentTenant.currency} {item.price}
+                <div className="text-right whitespace-nowrap">
+                  <div className="text-emerald-600 font-bold text-sm">{currentTenant.currency} {item.price}</div>
+                  {item.hasHalfPlate && item.halfPlatePrice && (
+                    <div className="text-[10px] text-amber-600 font-semibold">Half {currentTenant.currency} {item.halfPlatePrice}</div>
+                  )}
                 </div>
               </div>
               <div className="flex items-center gap-3 mt-2 text-[11px] text-slate-400">
@@ -319,6 +328,33 @@ export default function MenuManagementModule() {
                 </div>
               </div>
 
+              <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <div className="text-xs font-semibold text-slate-700">Half Plate Option</div>
+                    <div className="text-[11px] text-slate-500">Enable a smaller portion with its own selling price.</div>
+                  </div>
+                  <Toggle enabled={!!form.hasHalfPlate} onToggle={() => setForm(f => ({
+                    ...f,
+                    hasHalfPlate: !f.hasHalfPlate,
+                    halfPlatePrice: !f.hasHalfPlate ? (f.halfPlatePrice || 0) : 0,
+                  }))} />
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-slate-600 block mb-1">Half Plate Price ({currentTenant.currency})</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.5"
+                    value={form.hasHalfPlate ? (form.halfPlatePrice || '') : ''}
+                    onChange={e => setForm(f => ({ ...f, halfPlatePrice: parseFloat(e.target.value) || 0 }))}
+                    disabled={!form.hasHalfPlate}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-emerald-400 disabled:bg-gray-100 disabled:text-slate-400"
+                  />
+                </div>
+              </div>
+
               {/* Category */}
               <div>
                 <label className="text-xs font-semibold text-slate-600 block mb-1">Category</label>
@@ -350,7 +386,7 @@ export default function MenuManagementModule() {
               </button>
               <button
                 onClick={handleSave}
-                disabled={!form.name || !form.price}
+                disabled={!form.name || !form.price || (!!form.hasHalfPlate && !form.halfPlatePrice)}
                 className="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
                 <Save className="w-4 h-4" /> {editingItem ? 'Save Changes' : 'Add Item'}

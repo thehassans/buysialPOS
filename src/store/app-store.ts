@@ -233,13 +233,22 @@ export const useAppStore = create<AppState>()(
               password: u.password ?? localUser?.password,
             }
           })
+          const parsedMenuItems = menuItems.map((item: MenuItem) => {
+            const localItem = existingMenuItems.find(existing => existing.id === item.id)
+            return {
+              ...localItem,
+              ...item,
+              hasHalfPlate: item.hasHalfPlate ?? localItem?.hasHalfPlate,
+              halfPlatePrice: item.halfPlatePrice ?? localItem?.halfPlatePrice,
+            }
+          })
           const mergedCurrentUser = existingCurrentUser && existingCurrentUser.tenantId === tenantId
             ? parsedUsers.find((user: User) => user.id === existingCurrentUser.id) || existingCurrentUser
             : existingCurrentUser
           set({
             currentUser: mergedCurrentUser,
             orders: [...existingOrders.filter(order => order.tenantId !== tenantId), ...parsedOrders].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
-            menuItems: [...existingMenuItems.filter(item => item.tenantId !== tenantId), ...menuItems],
+            menuItems: [...existingMenuItems.filter(item => item.tenantId !== tenantId), ...parsedMenuItems],
             users: [...existingUsers.filter(user => user.tenantId !== tenantId), ...parsedUsers],
           })
         } catch (e) {

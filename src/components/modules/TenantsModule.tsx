@@ -32,7 +32,7 @@ const inputCls = "w-full px-3 py-2 rounded-xl border border-gray-200 text-sm tex
 const selectCls = "w-full px-3 py-2 rounded-xl border border-gray-200 text-sm text-gray-900 focus:border-emerald-500 focus:outline-none bg-gray-50 focus:bg-white transition-colors"
 
 export default function TenantsModule() {
-  const { tenants, addTenant, updateTenant, addUser, login } = useAppStore()
+  const { tenants, addTenant, updateTenant, addUser, users, setCurrentUser, setCurrentTenant, setLanguage, setActiveView } = useAppStore()
   const [search, setSearch] = useState('')
   const [viewTenant, setViewTenant] = useState<Tenant | null>(null)
   const [showForm, setShowForm] = useState(false)
@@ -117,6 +117,43 @@ export default function TenantsModule() {
     if (!t) return
     updateTenant(id, { isActive: !t.isActive })
     if (viewTenant?.id === id) setViewTenant(v => v ? { ...v, isActive: !v.isActive } : v)
+  }
+
+  const loginAsTenant = (tenant: Tenant) => {
+    const tenantUser = users.find(user => user.tenantId === tenant.id && user.isActive && user.role === 'admin')
+      || users.find(user => user.tenantId === tenant.id && user.isActive)
+
+    const resolvedUser: User | null = tenantUser || (tenant.email ? {
+      id: `tenant-admin-${tenant.id}`,
+      tenantId: tenant.id,
+      name: `${tenant.name} Admin`,
+      email: tenant.email,
+      role: 'admin',
+      language: 'en',
+      isActive: true,
+      createdAt: tenant.createdAt,
+      password: tenant.adminPassword,
+    } : null)
+
+    if (!resolvedUser) {
+      window.alert('No active user is available for this tenant yet.')
+      return
+    }
+
+    const defaultView: Record<User['role'], string> = {
+      super_admin: 'dashboard',
+      admin: 'dashboard',
+      manager: 'dashboard',
+      waiter: 'pos',
+      chef: 'kds',
+      cashier: 'cashier',
+    }
+
+    setCurrentUser(resolvedUser)
+    setCurrentTenant(tenant)
+    setLanguage(resolvedUser.language || 'en')
+    setActiveView(defaultView[resolvedUser.role] || 'dashboard')
+    window.location.href = '/dashboard'
   }
 
   return (
@@ -213,15 +250,7 @@ export default function TenantsModule() {
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1.5">
                       <button
-                        onClick={() => {
-                          const adminUser = tenants
-                            ? useAppStore.getState().users.find(u => u.tenantId === tenant.id && u.role === 'admin')
-                            : undefined
-                          if (adminUser?.password) {
-                            login(adminUser.email, adminUser.password)
-                            window.location.href = '/dashboard'
-                          }
-                        }}
+                        onClick={() => loginAsTenant(tenant)}
                         className="flex items-center gap-1 px-2.5 py-1 bg-white rounded-lg text-xs text-blue-600 font-medium border border-blue-200 hover:border-blue-400 hover:bg-blue-50 hover:shadow-sm transition-all"
                       >
                         <LogIn className="w-3 h-3" /> Login As

@@ -5,8 +5,8 @@ import { useSearchParams } from 'next/navigation'
 import { MOCK_TENANTS, MOCK_CATEGORIES, MOCK_MENU_ITEMS } from '@/lib/mock-data'
 import { TaxEngine } from '@/lib/country-config'
 import { cn } from '@/lib/utils'
-import { ShoppingCart, Plus, Minus, Sun, Moon, Search, Flame, Sparkles, X, ChefHat, MapPin, Phone, BadgeCheck } from 'lucide-react'
-import { MenuItem, OrderItem, Tenant } from '@/lib/types'
+import { ShoppingCart, Plus, Minus, Search, Flame, Sparkles, X, ChefHat, MapPin, Phone } from 'lucide-react'
+import { MenuItem, MenuPortion, OrderItem, Tenant } from '@/lib/types'
 
 const COUNTRY_META = {
   KSA: { flag: '🇸🇦', label: 'Saudi Arabia' },
@@ -52,8 +52,17 @@ function formatCategoryName(categoryId: string) {
     .replace(/\b\w/g, character => character.toUpperCase())
 }
 
+function getPortionPrice(item: MenuItem, portionType: MenuPortion) {
+  return portionType === 'half' && item.hasHalfPlate && item.halfPlatePrice
+    ? item.halfPlatePrice
+    : item.price
+}
+
+function getPortionLabel(portionType?: MenuPortion) {
+  return portionType === 'half' ? 'Half Plate' : 'Full Plate'
+}
+
 export default function PublicMenuPage({ params }: { params: { slug: string } }) {
-  const [darkMode, setDarkMode] = useState(true)
   const [activeCategory, setActiveCategory] = useState('all')
   const [cart, setCart] = useState<OrderItem[]>([])
   const [cartOpen, setCartOpen] = useState(false)
@@ -149,11 +158,13 @@ export default function PublicMenuPage({ params }: { params: { slug: string } })
   const subtotal = cart.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0)
   const { vatAmount, total } = taxEngine ? taxEngine.calculate(subtotal) : { vatAmount: 0, total: subtotal }
 
-  const addToCart = (item: MenuItem) => {
+  const addToCart = (item: MenuItem, portionType: MenuPortion = 'full') => {
     setCart(prev => {
-      const existing = prev.find(cartItem => cartItem.menuItemId === item.id)
+      const existing = prev.find(cartItem => cartItem.menuItemId === item.id && (cartItem.portionType || 'full') === portionType)
       if (existing) {
-        return prev.map(cartItem => cartItem.menuItemId === item.id ? { ...cartItem, quantity: cartItem.quantity + 1 } : cartItem)
+        return prev.map(cartItem => cartItem.menuItemId === item.id && (cartItem.portionType || 'full') === portionType
+          ? { ...cartItem, quantity: cartItem.quantity + 1 }
+          : cartItem)
       }
 
       return [
@@ -162,17 +173,18 @@ export default function PublicMenuPage({ params }: { params: { slug: string } })
           id: `ci-${Date.now()}`,
           menuItemId: item.id,
           menuItem: item,
+          portionType,
           quantity: 1,
-          unitPrice: item.price,
+          unitPrice: getPortionPrice(item, portionType),
           status: 'pending' as const,
         },
       ]
     })
   }
 
-  const updateQty = (itemId: string, delta: number) => {
+  const updateQty = (itemId: string, delta: number, portionType: MenuPortion = 'full') => {
     setCart(prev => prev.map(item => {
-      if (item.menuItemId !== itemId) return item
+      if (item.menuItemId !== itemId || (item.portionType || 'full') !== portionType) return item
       const newQuantity = item.quantity + delta
       return newQuantity <= 0 ? null : { ...item, quantity: newQuantity }
     }).filter(Boolean) as OrderItem[])
@@ -187,10 +199,8 @@ export default function PublicMenuPage({ params }: { params: { slug: string } })
     }, 4000)
   }
 
-  const bg = darkMode
-    ? 'bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.14),_transparent_28%),linear-gradient(180deg,#05120e_0%,#0c1e18_36%,#f6f0e8_36%,#f6f0e8_100%)]'
-    : 'bg-[radial-gradient(circle_at_top,_rgba(5,150,105,0.12),_transparent_32%),linear-gradient(180deg,#0b1720_0%,#10231c_32%,#fbf8f2_32%,#fbf8f2_100%)]'
-  const surface = darkMode ? 'bg-white/92 border-white/80' : 'bg-white border-stone-200'
+  const bg = 'bg-[radial-gradient(circle_at_top,_rgba(5,150,105,0.10),_transparent_26%),linear-gradient(180deg,#f7fbf9_0%,#f5f1ea_100%)]'
+  const surface = 'bg-white/95 border-stone-200'
   const text = 'text-slate-950'
   const subtext = 'text-slate-500'
   const country = tenant ? COUNTRY_META[tenant.countryCode] : null
@@ -236,54 +246,37 @@ export default function PublicMenuPage({ params }: { params: { slug: string } })
     <div className={cn('min-h-screen', bg, text)}>
       {/* Header */}
       <header className="relative overflow-hidden">
-        <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(255,255,255,0.14),transparent_48%)]" />
+        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(5,150,105,0.08),transparent_72%)]" />
         <div className="mx-auto max-w-3xl px-4 pb-10 pt-6 sm:px-6">
-          <div className="rounded-[34px] border border-white/10 bg-[#081612]/80 p-5 shadow-[0_35px_90px_rgba(2,6,23,0.34)] backdrop-blur-xl sm:p-7">
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex items-center gap-4">
-                <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-[22px] border border-white/10 bg-white/90 shadow-sm">
+          <div className="rounded-[34px] border border-white/70 bg-white/90 p-5 shadow-[0_28px_70px_rgba(15,23,42,0.10)] backdrop-blur-xl sm:p-7">
+            <div className="flex items-center gap-4">
+              <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-[28px] border border-stone-200 bg-white shadow-sm">
+                {tenantLogo ? (
                   <img src={tenantLogo} alt={tenant.name} className="h-full w-full object-cover" />
-                </div>
-                <div>
-                  <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-200">
-                    <BadgeCheck className="h-3.5 w-3.5" />
-                    Signature dining menu
-                  </div>
-                  <h1 className="mt-3 text-2xl font-black text-white sm:text-3xl">{tenant.name}</h1>
-                  <p className="mt-1 text-sm text-emerald-100/80">
-                    {country?.flag} {country?.label} · {taxEngine?.getVatLabel()}
-                  </p>
-                </div>
+                ) : (
+                  <span className="text-2xl font-black text-slate-700">{tenant.name.charAt(0)}</span>
+                )}
               </div>
-              <button
-                onClick={() => setDarkMode(!darkMode)}
-                className="flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-white/10 text-white transition-all"
-              >
-                {darkMode ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-              </button>
+              <div className="min-w-0">
+                <h1 className="text-2xl font-black text-slate-950 sm:text-3xl">{tenant.name}</h1>
+                <p className="mt-1 text-sm text-slate-500">{country?.flag} {country?.label}</p>
+                <p className="mt-1 text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">{tenant.currency} menu</p>
+              </div>
             </div>
 
-            <div className="mt-6 grid gap-3 text-sm text-slate-200 sm:grid-cols-2">
+            <div className="mt-6 grid gap-3 text-sm text-slate-600 sm:grid-cols-2">
               {tenant.address && (
-                <div className="flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
-                  <MapPin className="h-4 w-4 text-emerald-300" />
+                <div className="flex items-center gap-2 rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3">
+                  <MapPin className="h-4 w-4" style={{ color: brandColor }} />
                   <span className="line-clamp-1">{tenant.address}</span>
                 </div>
               )}
               {tenant.phone && (
-                <div className="flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
-                  <Phone className="h-4 w-4 text-emerald-300" />
+                <div className="flex items-center gap-2 rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3">
+                  <Phone className="h-4 w-4" style={{ color: brandColor }} />
                   <span>{tenant.phone}</span>
                 </div>
               )}
-            </div>
-
-            <div className="mt-6 rounded-[28px] border border-white/10 bg-white/5 p-5 text-slate-100">
-              <div className="text-xs font-semibold uppercase tracking-[0.24em] text-emerald-200">Curated for this restaurant only</div>
-              <div className="mt-2 text-2xl font-black text-white">Scan, browse, and order from the official {tenant.name} menu.</div>
-              <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate-300">
-                This QR code is bound to this restaurant profile, branding, tax settings, and live menu items only.
-              </p>
             </div>
           </div>
         </div>
@@ -293,7 +286,7 @@ export default function PublicMenuPage({ params }: { params: { slug: string } })
         <div className={cn('rounded-[34px] border p-4 shadow-[0_28px_80px_rgba(15,23,42,0.08)] backdrop-blur-xl sm:p-6', surface)}>
           {usingFallbackMenu && (
             <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs font-medium text-amber-700">
-              Showing the restaurant’s available fallback menu while live menu sync completes.
+              Menu sync in progress.
             </div>
           )}
 
@@ -301,8 +294,8 @@ export default function PublicMenuPage({ params }: { params: { slug: string } })
           <div className="mb-4 rounded-[28px] border border-slate-200 bg-white px-4 py-4 shadow-sm">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <div className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Menu discovery</div>
-                <div className="mt-1 text-lg font-black text-slate-950">{menuItems.length} dishes available</div>
+                <div className="text-lg font-black text-slate-950">{menuItems.length} dishes</div>
+                <div className="mt-1 text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">All prices in {tenant.currency}</div>
               </div>
               {cartCount > 0 && (
                 <button
@@ -374,16 +367,18 @@ export default function PublicMenuPage({ params }: { params: { slug: string } })
             )}
 
             {!isLoading && filteredItems.map(item => {
-              const inCart = cart.find(cartItem => cartItem.menuItemId === item.id)
+              const fullCartItem = cart.find(cartItem => cartItem.menuItemId === item.id && (cartItem.portionType || 'full') === 'full')
+              const halfCartItem = cart.find(cartItem => cartItem.menuItemId === item.id && cartItem.portionType === 'half')
+              const totalInCart = cart.filter(cartItem => cartItem.menuItemId === item.id).reduce((sum, cartItem) => sum + cartItem.quantity, 0)
 
               return (
                 <div
                   key={item.id}
                   className={cn(
                     'overflow-hidden rounded-[30px] border border-slate-200 bg-white shadow-sm transition-all',
-                    inCart ? 'ring-2 ring-offset-2 ring-offset-transparent' : ''
+                    totalInCart > 0 ? 'ring-2 ring-offset-2 ring-offset-transparent' : ''
                   )}
-                  style={inCart ? { borderColor: brandColor, boxShadow: `0 0 0 1px ${brandColor}40` } : undefined}
+                  style={totalInCart > 0 ? { borderColor: brandColor, boxShadow: `0 0 0 1px ${brandColor}40` } : undefined}
                 >
                   <div className="flex flex-col gap-4 p-4 sm:flex-row sm:p-5">
                     <div className="h-44 overflow-hidden rounded-[24px] bg-slate-100 sm:h-32 sm:w-36 sm:flex-shrink-0">
@@ -419,9 +414,10 @@ export default function PublicMenuPage({ params }: { params: { slug: string } })
                             )}
                           </div>
                           <div className="text-right">
-                            <div className="text-lg font-black" style={{ color: brandColor }}>
-                              {taxEngine?.formatCurrency(item.price)}
-                            </div>
+                            <div className="text-lg font-black" style={{ color: brandColor }}>{taxEngine?.formatCurrency(item.price)}</div>
+                            {item.hasHalfPlate && item.halfPlatePrice && (
+                              <div className="mt-1 text-xs font-semibold text-amber-600">Half {taxEngine?.formatCurrency(item.halfPlatePrice)}</div>
+                            )}
                           </div>
                         </div>
 
@@ -443,30 +439,73 @@ export default function PublicMenuPage({ params }: { params: { slug: string } })
                         )}
 
                         <div className="ml-auto">
-                          {!inCart ? (
-                            <button
-                              onClick={() => addToCart(item)}
-                              className="flex h-11 w-11 items-center justify-center rounded-full text-white shadow-sm transition-all active:scale-95"
-                              style={{ backgroundColor: brandColor }}
-                            >
-                              <Plus className="h-4 w-4" />
-                            </button>
-                          ) : (
-                            <div className="flex items-center gap-2">
+                          {!item.hasHalfPlate ? (
+                            !fullCartItem ? (
                               <button
-                                onClick={() => updateQty(item.id, -1)}
-                                className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-slate-700"
-                              >
-                                <Minus className="h-3.5 w-3.5" />
-                              </button>
-                              <span className="w-6 text-center text-sm font-bold text-slate-950">{inCart.quantity}</span>
-                              <button
-                                onClick={() => updateQty(item.id, 1)}
-                                className="flex h-9 w-9 items-center justify-center rounded-full text-white"
+                                onClick={() => addToCart(item, 'full')}
+                                className="flex h-11 w-11 items-center justify-center rounded-full text-white shadow-sm transition-all active:scale-95"
                                 style={{ backgroundColor: brandColor }}
                               >
-                                <Plus className="h-3.5 w-3.5" />
+                                <Plus className="h-4 w-4" />
                               </button>
+                            ) : (
+                              <div className="flex items-center gap-2">
+                                <button
+                                  onClick={() => updateQty(item.id, -1, 'full')}
+                                  className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-slate-700"
+                                >
+                                  <Minus className="h-3.5 w-3.5" />
+                                </button>
+                                <span className="w-6 text-center text-sm font-bold text-slate-950">{fullCartItem.quantity}</span>
+                                <button
+                                  onClick={() => updateQty(item.id, 1, 'full')}
+                                  className="flex h-9 w-9 items-center justify-center rounded-full text-white"
+                                  style={{ backgroundColor: brandColor }}
+                                >
+                                  <Plus className="h-3.5 w-3.5" />
+                                </button>
+                              </div>
+                            )
+                          ) : (
+                            <div className="grid min-w-[220px] gap-2 sm:min-w-[250px]">
+                              {(['full', 'half'] as MenuPortion[]).map(portion => {
+                                if (portion === 'half' && !item.hasHalfPlate) return null
+                                const portionCartItem = portion === 'half' ? halfCartItem : fullCartItem
+                                return (
+                                  <div key={portion} className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2">
+                                    <div>
+                                      <div className="text-[11px] font-semibold text-slate-700">{getPortionLabel(portion)}</div>
+                                      <div className="text-[11px] text-slate-500">{taxEngine?.formatCurrency(getPortionPrice(item, portion))}</div>
+                                    </div>
+                                    {!portionCartItem ? (
+                                      <button
+                                        onClick={() => addToCart(item, portion)}
+                                        className="flex h-8 min-w-8 items-center justify-center rounded-full px-2 text-white"
+                                        style={{ backgroundColor: brandColor }}
+                                      >
+                                        <Plus className="h-3.5 w-3.5" />
+                                      </button>
+                                    ) : (
+                                      <div className="flex items-center gap-2">
+                                        <button
+                                          onClick={() => updateQty(item.id, -1, portion)}
+                                          className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700"
+                                        >
+                                          <Minus className="h-3 w-3" />
+                                        </button>
+                                        <span className="w-5 text-center text-sm font-bold text-slate-950">{portionCartItem.quantity}</span>
+                                        <button
+                                          onClick={() => updateQty(item.id, 1, portion)}
+                                          className="flex h-8 w-8 items-center justify-center rounded-full text-white"
+                                          style={{ backgroundColor: brandColor }}
+                                        >
+                                          <Plus className="h-3 w-3" />
+                                        </button>
+                                      </div>
+                                    )}
+                                  </div>
+                                )
+                              })}
                             </div>
                           )}
                         </div>
@@ -506,14 +545,14 @@ export default function PublicMenuPage({ params }: { params: { slug: string } })
                 <div key={item.id} className="flex items-center gap-3">
                   <div className="flex-1">
                     <div className="text-sm font-semibold text-slate-950">{item.menuItem.name}</div>
-                    <div className="text-xs text-slate-500">{taxEngine?.formatCurrency(item.unitPrice)}</div>
+                    <div className="text-xs text-slate-500">{getPortionLabel(item.portionType)} · {taxEngine?.formatCurrency(item.unitPrice)}</div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <button onClick={() => updateQty(item.menuItemId, -1)} className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-100 text-slate-700">
+                    <button onClick={() => updateQty(item.menuItemId, -1, item.portionType || 'full')} className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-100 text-slate-700">
                       <Minus className="h-3 w-3" />
                     </button>
                     <span className="w-4 text-center text-sm font-bold text-slate-950">{item.quantity}</span>
-                    <button onClick={() => updateQty(item.menuItemId, 1)} className="flex h-7 w-7 items-center justify-center rounded-full text-white" style={{ backgroundColor: brandColor }}>
+                    <button onClick={() => updateQty(item.menuItemId, 1, item.portionType || 'full')} className="flex h-7 w-7 items-center justify-center rounded-full text-white" style={{ backgroundColor: brandColor }}>
                       <Plus className="h-3 w-3" />
                     </button>
                   </div>

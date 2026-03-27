@@ -8,7 +8,7 @@ import { cn } from '@/lib/utils'
 import { QrCode, Download, Eye, ExternalLink, Sparkles, Copy, Check } from 'lucide-react'
 
 export default function QRMenuModule() {
-  const { currentTenant } = useAppStore()
+  const { currentTenant, menuItems } = useAppStore()
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null)
   const [qrGenerated, setQrGenerated] = useState(false)
@@ -19,6 +19,23 @@ export default function QRMenuModule() {
   const [fgColor, setFgColor] = useState('#059669')
 
   if (!currentTenant) return null
+
+  const tenantMenuItems = menuItems.filter(item => item.tenantId === currentTenant.id)
+  const fallbackTenantMenuItems = MOCK_MENU_ITEMS.filter(item => item.tenantId === currentTenant.id)
+  const scopedMenuItems = tenantMenuItems.length > 0 ? tenantMenuItems : fallbackTenantMenuItems
+  const scopedMockCategories = MOCK_CATEGORIES
+    .filter(category => category.tenantId === currentTenant.id)
+    .filter(category => scopedMenuItems.some(item => item.categoryId === category.id))
+  const scopedCategories = scopedMockCategories.length > 0
+    ? scopedMockCategories
+    : Array.from(new Set(scopedMenuItems.map(item => item.categoryId).filter(Boolean))).map((categoryId, index) => ({
+      id: categoryId,
+      tenantId: currentTenant.id,
+      name: categoryId,
+      icon: ['🍽️', '🥗', '🥘', '🍰', '🥤'][index % 5],
+      sortOrder: index + 1,
+      isActive: true,
+    }))
 
   const menuUrl = `${typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000'}/menu/${encodeURIComponent(currentTenant.slug)}?${new URLSearchParams({
     tenantId: currentTenant.id,
@@ -279,10 +296,10 @@ export default function QRMenuModule() {
         <h3 className="text-gray-900 font-semibold text-sm mb-4">Menu Content Summary</h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[
-            { label: 'Categories', value: MOCK_CATEGORIES.length },
-            { label: 'Menu Items', value: MOCK_MENU_ITEMS.length },
-            { label: 'Popular Items', value: MOCK_MENU_ITEMS.filter(i => i.isPopular).length },
-            { label: 'New Items', value: MOCK_MENU_ITEMS.filter(i => i.isNew).length },
+            { label: 'Categories', value: scopedCategories.length },
+            { label: 'Menu Items', value: scopedMenuItems.length },
+            { label: 'Popular Items', value: scopedMenuItems.filter(i => i.isPopular).length },
+            { label: 'New Items', value: scopedMenuItems.filter(i => i.isNew).length },
           ].map(stat => (
             <div key={stat.label} className="text-center p-3 bg-emerald-50 rounded-xl">
               <div className="text-2xl font-black text-gray-900">{stat.value}</div>

@@ -40,6 +40,8 @@ model MenuItem {
   description     String?
   descriptionAr   String?
   price           Float
+  hasHalfPlate    Boolean @default(false)
+  halfPlatePrice  Float?
   image           String?
   isAvailable     Boolean @default(true)
   preparationTime Int?
