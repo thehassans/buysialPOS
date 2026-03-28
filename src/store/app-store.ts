@@ -4,6 +4,8 @@ import { User, Tenant, Order, OrderItem, MenuItem, Table, Theme, Language, Inven
 import { MOCK_USERS, MOCK_TENANTS, MOCK_ORDERS, MOCK_MENU_ITEMS, MOCK_TABLES, MOCK_INVENTORY, MOCK_ATTENDANCE, MOCK_CATEGORIES } from '@/lib/mock-data'
 import { apiSync } from '@/lib/sync-queue'
 
+const NO_STORE_FETCH_OPTIONS: RequestInit = { cache: 'no-store' }
+
 interface AppState {
   currentUser: User | null
   currentTenant: Tenant | null
@@ -29,14 +31,14 @@ interface AppState {
   toggleSidebar: () => void
   login: (email: string, password: string) => { success: boolean; error?: string }
   logout: () => void
-  addTenant: (tenant: Tenant) => void
+  addTenant: (tenant: Tenant) => Promise<boolean>
   updateTenant: (id: string, updates: Partial<Tenant>) => void
   addCategory: (category: Category) => void
   setEditingOrder: (order: Order | null) => void
   addOrder: (order: Order) => void
   updateOrder: (id: string, updates: Partial<Order>) => void
   updateOrderItemStatus: (orderId: string, itemId: string, status: OrderItem['status']) => void
-  addUser: (user: User) => void
+  addUser: (user: User) => Promise<boolean>
   updateUser: (id: string, updates: Partial<User>) => void
   deleteUser: (id: string) => void
   addMenuItem: (item: MenuItem) => void
@@ -100,12 +102,19 @@ export const useAppStore = create<AppState>()(
 
       logout: () => set({ currentUser: null, currentTenant: null }),
 
-      addTenant: (tenant) => {
+      addTenant: async (tenant) => {
+        const previousTenants = get().tenants
+        const previousCurrentTenant = get().currentTenant
         set((state) => ({
           tenants: [...state.tenants.filter(existing => existing.id !== tenant.id), tenant],
           currentTenant: state.currentTenant?.id === tenant.id ? tenant : state.currentTenant,
         }))
-        apiSync('/api/tenants', 'POST', tenant)
+        const synced = await apiSync('/api/tenants', 'POST', tenant)
+        if (!synced) {
+          set({ tenants: previousTenants, currentTenant: previousCurrentTenant })
+          return false
+        }
+        return true
       },
       updateTenant: (id, updates) => {
         set((state) => {
@@ -150,9 +159,15 @@ export const useAppStore = create<AppState>()(
         if (updatedItems) apiSync(`/api/orders/${orderId}`, 'PATCH', { items: updatedItems })
       },
 
-      addUser: (user) => {
-        set((state) => ({ users: [...state.users, user] }))
-        apiSync('/api/users', 'POST', user)
+      addUser: async (user) => {
+        const previousUsers = get().users
+        set((state) => ({ users: [...state.users.filter(existing => existing.id !== user.id), user] }))
+        const synced = await apiSync('/api/users', 'POST', user)
+        if (!synced) {
+          set({ users: previousUsers })
+          return false
+        }
+        return true
       },
       updateUser: (id, updates) => {
         set((state) => ({ users: state.users.map(u => u.id === id ? { ...u, ...updates } : u) }))
@@ -238,8 +253,8 @@ export const useAppStore = create<AppState>()(
           const existingTenants = get().tenants
           const existingCurrentTenant = get().currentTenant
           const [tenantsRes, usersRes] = await Promise.all([
-            fetch('/api/tenants'),
-            fetch('/api/users'),
+            fetch('/api/tenants', NO_STORE_FETCH_OPTIONS),
+            fetch('/api/users', NO_STORE_FETCH_OPTIONS),
           ])
           if (!tenantsRes.ok || !usersRes.ok) return
           const [tenants, users] = await Promise.all([
@@ -291,10 +306,10 @@ export const useAppStore = create<AppState>()(
           const existingMenuItems = get().menuItems
           const existingCurrentUser = get().currentUser
           const [ordersRes, menuRes, usersRes, categoriesRes] = await Promise.all([
-            fetch(`/api/orders?tenantId=${tenantId}`),
-            fetch(`/api/menu-items?tenantId=${tenantId}`),
-            fetch(`/api/users?tenantId=${tenantId}`),
-            fetch(`/api/categories?tenantId=${tenantId}`),
+            fetch(`/api/orders?tenantId=${tenantId}`, NO_STORE_FETCH_OPTIONS),
+            fetch(`/api/menu-items?tenantId=${tenantId}`, NO_STORE_FETCH_OPTIONS),
+            fetch(`/api/users?tenantId=${tenantId}`, NO_STORE_FETCH_OPTIONS),
+            fetch(`/api/categories?tenantId=${tenantId}`, NO_STORE_FETCH_OPTIONS),
           ])
           if (!ordersRes.ok || !menuRes.ok || !usersRes.ok || !categoriesRes.ok) return
           const [orders, menuItems, users, categories] = await Promise.all([

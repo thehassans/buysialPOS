@@ -41,6 +41,7 @@ export default function TenantsModule() {
   const [form, setForm] = useState({ ...EMPTY_FORM })
   const [newCreds, setNewCreds] = useState<{ tenantName: string; email: string; password: string } | null>(null)
   const [copied, setCopied] = useState('')
+  const [saveError, setSaveError] = useState('')
 
   const filtered = tenants.filter(t =>
     t.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -57,6 +58,7 @@ export default function TenantsModule() {
     setEditingId(null)
     setForm({ ...EMPTY_FORM })
     setViewTenant(null)
+    setSaveError('')
     setShowForm(true)
   }
 
@@ -70,6 +72,7 @@ export default function TenantsModule() {
       primaryColor: t.primaryColor || '#059669', adminPassword: t.adminPassword || '',
     })
     setViewTenant(null)
+    setSaveError('')
     setShowForm(true)
   }
 
@@ -78,8 +81,9 @@ export default function TenantsModule() {
     setForm(f => ({ ...f, countryCode: code, currency: c.currency, vatRate: c.vat }))
   }
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!form.name.trim() || !form.email.trim()) return
+    setSaveError('')
     const existingTenant = editingId ? tenants.find(tenant => tenant.id === editingId) : null
     const adminPassword = form.adminPassword.trim() || existingTenant?.adminPassword || `${form.name.split(' ')[0].toLowerCase()}${Math.random().toString(36).slice(2, 7)}`
     if (editingId) {
@@ -95,7 +99,11 @@ export default function TenantsModule() {
         createdAt: new Date(),
         invoiceFooter: 'Thank you for dining with us!',
       }
-      addTenant(newTenant)
+      const tenantSaved = await addTenant(newTenant)
+      if (!tenantSaved) {
+        setSaveError('Failed to save tenant to MongoDB. Please check the production database connection and try again.')
+        return
+      }
       const adminUser: User = {
         id: `u-${Date.now()}`, tenantId,
         name: `${form.name} Admin`,
@@ -106,7 +114,11 @@ export default function TenantsModule() {
         isActive: true,
         createdAt: new Date(),
       }
-      addUser(adminUser)
+      const userSaved = await addUser(adminUser)
+      if (!userSaved) {
+        setSaveError('Tenant saved, but the tenant admin user could not be saved. Please try again.')
+        return
+      }
       setNewCreds({ tenantName: form.name, email: form.email, password: adminPassword })
     }
     setShowForm(false)
@@ -354,6 +366,11 @@ export default function TenantsModule() {
             </div>
 
             <div className="p-8 space-y-4 max-h-[70vh] overflow-y-auto scrollbar-thin">
+              {saveError && (
+                <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+                  {saveError}
+                </div>
+              )}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Field label="Restaurant Name *">
                   <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} className={inputCls} placeholder="Al Fanar Restaurant" />

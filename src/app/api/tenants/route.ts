@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { MOCK_TENANTS } from '@/lib/mock-data'
 
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 function formatTenant(tenant: any) {
   const { mongoId, ...rest } = tenant
   return {

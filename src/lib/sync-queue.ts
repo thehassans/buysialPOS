@@ -56,15 +56,18 @@ export async function processQueue(): Promise<number> {
   return synced
 }
 
-export async function apiSync(url: string, method: SyncOp['method'], body?: unknown): Promise<void> {
+export async function apiSync(url: string, method: SyncOp['method'], body?: unknown): Promise<boolean> {
   try {
     const res = await fetch(url, {
       method,
       headers: { 'Content-Type': 'application/json' },
       body: body ? JSON.stringify(body) : undefined,
     })
-    if (!res.ok) enqueue(url, method, body)
+    if (res.ok) return true
+    enqueue(url, method, body)
+    return false
   } catch {
     enqueue(url, method, body)
+    return false
   }
 }

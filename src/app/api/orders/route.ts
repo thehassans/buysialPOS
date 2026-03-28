@@ -3,6 +3,9 @@ import { db } from '@/lib/db'
 import { Order } from '@/lib/types'
 import { enqueueSyncOperation } from '@/lib/syncService'
 
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 function dbToOrder(o: any): Order {
   const { mongoId, itemsJson, ...rest } = o
   return {
