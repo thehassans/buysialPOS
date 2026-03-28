@@ -6,6 +6,46 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
+export function normalizeHexColor(color?: string, fallback = '#059669') {
+  const value = String(color || '').trim()
+  const hex = value.startsWith('#') ? value.slice(1) : value
+  if (!/^[0-9a-fA-F]{3}([0-9a-fA-F]{3})?$/.test(hex)) return fallback
+  if (hex.length === 3) {
+    return `#${hex.split('').map(character => `${character}${character}`).join('')}`.toLowerCase()
+  }
+  return `#${hex}`.toLowerCase()
+}
+
+export function hexToRgb(color?: string) {
+  const normalized = normalizeHexColor(color)
+  const value = normalized.slice(1)
+  return {
+    r: Number.parseInt(value.slice(0, 2), 16),
+    g: Number.parseInt(value.slice(2, 4), 16),
+    b: Number.parseInt(value.slice(4, 6), 16),
+  }
+}
+
+export function withAlpha(color: string | undefined, alpha: number) {
+  const { r, g, b } = hexToRgb(color)
+  const clamped = Math.min(Math.max(alpha, 0), 1)
+  return `rgba(${r}, ${g}, ${b}, ${clamped})`
+}
+
+export function mixHexColors(base: string | undefined, mixWith: string, weight = 0.5) {
+  const baseRgb = hexToRgb(base)
+  const mixRgb = hexToRgb(mixWith)
+  const mixRatio = Math.min(Math.max(weight, 0), 1)
+  const toHex = (value: number) => Math.round(value).toString(16).padStart(2, '0')
+  return `#${toHex(baseRgb.r * (1 - mixRatio) + mixRgb.r * mixRatio)}${toHex(baseRgb.g * (1 - mixRatio) + mixRgb.g * mixRatio)}${toHex(baseRgb.b * (1 - mixRatio) + mixRgb.b * mixRatio)}`
+}
+
+export function getReadableTextColor(color?: string) {
+  const { r, g, b } = hexToRgb(color)
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255
+  return luminance > 0.65 ? '#0f172a' : '#ffffff'
+}
+
 const CURRENCY_SYMBOLS: Record<Currency, string> = {
   SAR: '\u20C1',
   AED: 'د.إ',

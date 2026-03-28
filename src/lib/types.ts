@@ -41,6 +41,7 @@ export interface Tenant {
   validUntil?: Date
   invoiceFooter?: string
   primaryColor?: string
+  secondaryColor?: string
   adminPassword?: string
   kitchenPrinterName?: string
   kitchenPrinterConnection?: PrinterConnectionType
@@ -164,6 +165,9 @@ export interface Supplier {
   phone: string
   address?: string
   category: string
+  paymentTerms?: string
+  notes?: string
+  isActive?: boolean
 }
 
 export interface AttendanceRecord {

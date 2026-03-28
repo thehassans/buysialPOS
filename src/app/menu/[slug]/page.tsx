@@ -70,21 +70,61 @@ export default function PublicMenuPage({ params }: { params: { slug: string } })
   const [categories, setCategories] = useState<Category[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [usingFallbackMenu, setUsingFallbackMenu] = useState(false)
+  const [remoteTenant, setRemoteTenant] = useState<Tenant | null>(null)
+  const [tenantLookupPending, setTenantLookupPending] = useState(true)
   const searchParams = useSearchParams()
 
   const slug = decodeURIComponent(params.slug)
-  const tenant = useMemo(() => {
-    return buildTenantFromQuery(searchParams, slug) || MOCK_TENANTS.find(item => item.slug === slug) || null
-  }, [searchParams, slug])
+  const tenantIdFromQuery = searchParams.get('tenantId')
+  const queryTenant = useMemo(() => buildTenantFromQuery(searchParams, slug), [searchParams, slug])
+  const fallbackTenant = useMemo(() => MOCK_TENANTS.find(item => item.slug === slug) || null, [slug])
+  const tenant = useMemo(() => remoteTenant || queryTenant || fallbackTenant, [fallbackTenant, queryTenant, remoteTenant])
 
-  const tenantId = searchParams.get('tenantId') || tenant?.id || null
+  const tenantId = tenantIdFromQuery || tenant?.id || null
   const tenantLogo = tenant?.logo || searchParams.get('logo') || '/logo.png'
   const brandColor = tenant?.primaryColor || '#059669'
   const currencySymbol = tenant ? getCurrencySymbol(tenant.currency) : ''
   const taxEngine = tenant ? new TaxEngine(tenant.countryCode, tenant.vatRate) : null
 
   useEffect(() => {
+    let cancelled = false
+    setRemoteTenant(null)
+    setTenantLookupPending(true)
+
+    const loadTenant = async () => {
+      if (queryTenant || fallbackTenant) {
+        if (!cancelled) setTenantLookupPending(false)
+        return
+      }
+
+      try {
+        const response = await fetch('/api/tenants', { cache: 'no-store' })
+        if (!response.ok) return
+        const data = await response.json()
+        if (cancelled || !Array.isArray(data)) return
+        const match = data.find((item: Tenant) => item.id === tenantIdFromQuery || item.slug === slug)
+        if (!match) return
+        setRemoteTenant({
+          ...match,
+          createdAt: new Date(match.createdAt),
+          validUntil: match.validUntil ? new Date(match.validUntil) : undefined,
+        })
+      } catch {
+      } finally {
+        if (!cancelled) setTenantLookupPending(false)
+      }
+    }
+
+    loadTenant()
+
+    return () => {
+      cancelled = true
+    }
+  }, [fallbackTenant, queryTenant, slug, tenantIdFromQuery])
+
+  useEffect(() => {
     if (!tenantId) {
+      if (tenantLookupPending) return
       setMenuItems([])
       setIsLoading(false)
       return
@@ -137,7 +177,7 @@ export default function PublicMenuPage({ params }: { params: { slug: string } })
     return () => {
       cancelled = true
     }
-  }, [tenantId])
+  }, [tenantId, tenantLookupPending])
 
   const availableCategories = useMemo(() => {
     const scopedCategories = categories
@@ -215,6 +255,22 @@ export default function PublicMenuPage({ params }: { params: { slug: string } })
   const text = 'text-slate-950'
   const subtext = 'text-slate-500'
   const country = tenant ? COUNTRY_META[tenant.countryCode] : null
+
+  if (tenantLookupPending && !tenant) {
+    return (
+      <div className="min-h-screen bg-[#07120f] px-4 py-12 text-white">
+        <div className="mx-auto max-w-lg rounded-[32px] border border-white/10 bg-white/5 p-8 text-center backdrop-blur-xl">
+          <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full border border-white/10 bg-white/10">
+            <ChefHat className="h-9 w-9 animate-pulse text-emerald-300" />
+          </div>
+          <h1 className="mt-6 text-3xl font-black">Loading restaurant menu</h1>
+          <p className="mt-3 text-sm text-slate-300">
+            We’re connecting this QR code to the restaurant’s live menu now.
+          </p>
+        </div>
+      </div>
+    )
+  }
 
   if (!tenant || !tenantId) {
     return (

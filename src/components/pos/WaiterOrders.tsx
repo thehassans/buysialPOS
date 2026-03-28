@@ -56,7 +56,7 @@ function StatusSteps({ status }: { status: string }) {
 }
 
 export default function WaiterOrders() {
-  const { currentUser, currentTenant, orders, updateOrder, setActiveView, setEditingOrder } = useAppStore()
+  const { currentUser, currentTenant, orders, users, updateOrder, setActiveView, setEditingOrder } = useAppStore()
   const [tick, setTick] = useState(0)
   const [filter, setFilter] = useState<'active' | 'all'>('active')
   const isAr = false
@@ -68,19 +68,23 @@ export default function WaiterOrders() {
 
   if (!currentUser || !currentTenant) return null
   const taxEngine = new TaxEngine(currentTenant.countryCode, currentTenant.vatRate)
+  const canViewAllTenantOrders = currentUser.role === 'cashier' || currentUser.role === 'admin' || currentUser.role === 'manager'
+  const headerTitle = currentUser.role === 'cashier' ? 'Orders' : 'My Orders'
+  const headerSubtitle = currentUser.role === 'cashier'
+    ? `${currentTenant.name} · All waiter and POS orders`
+    : `${currentUser.name} · ${currentTenant.name}`
+  const tenantOrders = orders.filter(order => order.tenantId === currentTenant.id)
+  const orderScope = tenantOrders.filter(order => canViewAllTenantOrders || order.waiterId === currentUser.id)
 
-  const myOrders = orders
-    .filter(o => o.waiterId === currentUser.id || o.tenantId === currentTenant.id)
+  const myOrders = orderScope
     .filter(o => filter === 'active' ? !['completed', 'cancelled'].includes(o.status) : true)
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
 
-  const activeCount = orders.filter(o =>
-    (o.waiterId === currentUser.id || o.tenantId === currentTenant.id) &&
+  const activeCount = orderScope.filter(o =>
     !['completed', 'cancelled'].includes(o.status)
   ).length
 
-  const readyCount = orders.filter(o =>
-    (o.waiterId === currentUser.id || o.tenantId === currentTenant.id) &&
+  const readyCount = orderScope.filter(o =>
     o.status === 'ready'
   ).length
 
@@ -100,8 +104,8 @@ export default function WaiterOrders() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-bold text-gray-900">My Orders</h2>
-          <p className="text-slate-500 text-sm mt-0.5">{currentUser.name} · {currentTenant.name}</p>
+          <h2 className="text-xl font-bold text-gray-900">{headerTitle}</h2>
+          <p className="text-slate-500 text-sm mt-0.5">{headerSubtitle}</p>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -222,6 +226,12 @@ export default function WaiterOrders() {
                         {order.customerName && (
                           <span className="flex items-center gap-1">
                             <User className="w-3 h-3" /> {order.customerName}
+                          </span>
+                        )}
+                        {canViewAllTenantOrders && order.waiterId && (
+                          <span className="flex items-center gap-1">
+                            <User className="w-3 h-3" />
+                            {users.find(user => user.id === order.waiterId)?.name || 'Assigned Waiter'}
                           </span>
                         )}
                       </div>

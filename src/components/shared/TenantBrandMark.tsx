@@ -20,9 +20,9 @@ export default function TenantBrandMark({
   alt,
 }: TenantBrandMarkProps) {
   return (
-    <div className={cn('overflow-hidden flex items-center justify-center bg-emerald-100 border border-emerald-200 text-emerald-700', className)}>
+    <div className={cn('overflow-hidden flex items-center justify-center text-emerald-700', logo ? 'bg-white border border-slate-200/90 shadow-[0_10px_30px_rgba(15,23,42,0.08)]' : 'bg-emerald-100 border border-emerald-200', className)}>
       {logo ? (
-        <img src={logo} alt={alt || name} className={cn('h-full w-full object-cover', imageClassName)} />
+        <img src={logo} alt={alt || name} className={cn('h-[78%] w-[78%] object-contain', imageClassName)} />
       ) : (
         <span className={cn('font-bold', initialsClassName)}>{getInitials(name)}</span>
       )}

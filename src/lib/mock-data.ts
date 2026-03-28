@@ -54,6 +54,7 @@ export const MOCK_TENANTS: Tenant[] = [
     createdAt: new Date('2023-01-15'),
     invoiceFooter: 'Thank you for dining with us!',
     primaryColor: '#059669',
+    secondaryColor: '#0f766e',
   },
   {
     id: 't2',
@@ -71,6 +72,7 @@ export const MOCK_TENANTS: Tenant[] = [
     createdAt: new Date('2023-03-20'),
     invoiceFooter: 'We hope to see you again soon!',
     primaryColor: '#d97706',
+    secondaryColor: '#7c2d12',
   },
   {
     id: 't3',
@@ -87,6 +89,7 @@ export const MOCK_TENANTS: Tenant[] = [
     isActive: true,
     createdAt: new Date('2023-06-10'),
     primaryColor: '#059669',
+    secondaryColor: '#1d4ed8',
   },
   {
     id: 't4',
@@ -103,6 +106,7 @@ export const MOCK_TENANTS: Tenant[] = [
     isActive: true,
     createdAt: new Date('2022-11-01'),
     primaryColor: '#7c3aed',
+    secondaryColor: '#1d4ed8',
   },
   {
     id: 't5',
@@ -119,6 +123,7 @@ export const MOCK_TENANTS: Tenant[] = [
     isActive: false,
     createdAt: new Date('2024-01-05'),
     primaryColor: '#dc2626',
+    secondaryColor: '#ea580c',
   },
   {
     id: 't6',
@@ -136,6 +141,7 @@ export const MOCK_TENANTS: Tenant[] = [
     createdAt: new Date('2024-03-01'),
     invoiceFooter: 'شكراً لزيارتكم | Thank you for visiting!',
     primaryColor: '#0891b2',
+    secondaryColor: '#0f766e',
   },
   {
     id: 't7',
@@ -152,6 +158,7 @@ export const MOCK_TENANTS: Tenant[] = [
     isActive: true,
     createdAt: new Date('2024-05-10'),
     primaryColor: '#16a34a',
+    secondaryColor: '#0f766e',
   },
 ]
 
@@ -268,9 +275,9 @@ export const MOCK_INVENTORY: InventoryItem[] = [
 ]
 
 export const MOCK_SUPPLIERS: Supplier[] = [
-  { id: 's1', tenantId: 't1', name: 'Al-Watania Poultry', contact: 'Hassan Al-Watani', phone: '+966-11-444-5555', email: 'supply@alwatania.com', category: 'Poultry' },
-  { id: 's2', tenantId: 't1', name: 'Saudi Seafood Co.', contact: 'Ali Al-Bahri', phone: '+966-12-777-8888', category: 'Seafood' },
-  { id: 's3', tenantId: 't1', name: 'Green Valley Farms', contact: 'Samir Nasser', phone: '+966-11-222-3333', email: 'info@greenvalley.sa', category: 'Vegetables & Fruits' },
+  { id: 's1', tenantId: 't1', name: 'Al-Watania Poultry', contact: 'Hassan Al-Watani', phone: '+966-11-444-5555', email: 'supply@alwatania.com', category: 'Poultry', paymentTerms: 'Net 15', isActive: true },
+  { id: 's2', tenantId: 't1', name: 'Saudi Seafood Co.', contact: 'Ali Al-Bahri', phone: '+966-12-777-8888', category: 'Seafood', paymentTerms: 'Cash on delivery', isActive: true },
+  { id: 's3', tenantId: 't1', name: 'Green Valley Farms', contact: 'Samir Nasser', phone: '+966-11-222-3333', email: 'info@greenvalley.sa', category: 'Vegetables & Fruits', paymentTerms: 'Net 30', notes: 'Delivers every Monday and Thursday', isActive: true },
   { id: 's4', tenantId: 't1', name: 'Al-Marai Dairy', contact: 'Customer Service', phone: '+966-800-200-200', email: 'b2b@almarai.com', category: 'Dairy' },
 ]
 

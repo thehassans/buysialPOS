@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
-import { User, Tenant, Order, OrderItem, MenuItem, Table, Theme, Language, InventoryItem, AttendanceRecord, Category } from '@/lib/types'
-import { MOCK_USERS, MOCK_TENANTS, MOCK_ORDERS, MOCK_MENU_ITEMS, MOCK_TABLES, MOCK_INVENTORY, MOCK_ATTENDANCE, MOCK_CATEGORIES } from '@/lib/mock-data'
+import { User, Tenant, Order, OrderItem, MenuItem, Table, Theme, Language, InventoryItem, AttendanceRecord, Category, Supplier } from '@/lib/types'
+import { MOCK_USERS, MOCK_TENANTS, MOCK_ORDERS, MOCK_MENU_ITEMS, MOCK_TABLES, MOCK_INVENTORY, MOCK_ATTENDANCE, MOCK_CATEGORIES, MOCK_SUPPLIERS } from '@/lib/mock-data'
 import { apiSync } from '@/lib/sync-queue'
 
 const NO_STORE_FETCH_OPTIONS: RequestInit = { cache: 'no-store' }
@@ -18,6 +18,7 @@ interface AppState {
   menuItems: MenuItem[]
   tables: Table[]
   inventoryItems: InventoryItem[]
+  suppliers: Supplier[]
   attendance: AttendanceRecord[]
   activeView: string
   sidebarOpen: boolean
@@ -47,6 +48,9 @@ interface AppState {
   addInventoryItem: (item: InventoryItem) => void
   updateInventoryItem: (id: string, updates: Partial<InventoryItem>) => void
   deleteInventoryItem: (id: string) => void
+  addSupplier: (supplier: Supplier) => void
+  updateSupplier: (id: string, updates: Partial<Supplier>) => void
+  deleteSupplier: (id: string) => void
   toggleAttendance: (userId: string) => void
   reserveTable: (tableNumber: number, orderId: string) => void
   releaseTable: (tableNumber: number) => void
@@ -68,6 +72,7 @@ export const useAppStore = create<AppState>()(
       menuItems: MOCK_MENU_ITEMS,
       tables: MOCK_TABLES,
       inventoryItems: MOCK_INVENTORY,
+      suppliers: MOCK_SUPPLIERS,
       attendance: MOCK_ATTENDANCE,
       activeView: 'dashboard',
       sidebarOpen: false,
@@ -192,13 +197,28 @@ export const useAppStore = create<AppState>()(
       },
 
       addInventoryItem: (item) => {
-        set((state) => ({ inventoryItems: [...state.inventoryItems, item] }))
+        set((state) => ({ inventoryItems: [...state.inventoryItems.filter(existing => existing.id !== item.id), item] }))
+        apiSync('/api/inventory', 'POST', item)
       },
       updateInventoryItem: (id, updates) => {
         set((state) => ({ inventoryItems: state.inventoryItems.map(item => item.id === id ? { ...item, ...updates } : item) }))
+        apiSync(`/api/inventory/${id}`, 'PATCH', updates)
       },
       deleteInventoryItem: (id) => {
         set((state) => ({ inventoryItems: state.inventoryItems.filter(item => item.id !== id) }))
+        apiSync(`/api/inventory/${id}`, 'DELETE')
+      },
+      addSupplier: (supplier) => {
+        set((state) => ({ suppliers: [...state.suppliers.filter(existing => existing.id !== supplier.id), supplier] }))
+        apiSync('/api/suppliers', 'POST', supplier)
+      },
+      updateSupplier: (id, updates) => {
+        set((state) => ({ suppliers: state.suppliers.map(supplier => supplier.id === id ? { ...supplier, ...updates } : supplier) }))
+        apiSync(`/api/suppliers/${id}`, 'PATCH', updates)
+      },
+      deleteSupplier: (id) => {
+        set((state) => ({ suppliers: state.suppliers.filter(supplier => supplier.id !== id) }))
+        apiSync(`/api/suppliers/${id}`, 'DELETE')
       },
       toggleAttendance: (userId) => {
         const tenantId = get().currentTenant?.id
@@ -304,16 +324,20 @@ export const useAppStore = create<AppState>()(
           const existingOrders = get().orders
           const existingCategories = get().categories
           const existingMenuItems = get().menuItems
+          const existingInventoryItems = get().inventoryItems
+          const existingSuppliers = get().suppliers
           const existingCurrentUser = get().currentUser
-          const [ordersRes, menuRes, usersRes, categoriesRes] = await Promise.all([
+          const [ordersRes, menuRes, usersRes, categoriesRes, inventoryRes, suppliersRes] = await Promise.all([
             fetch(`/api/orders?tenantId=${tenantId}`, NO_STORE_FETCH_OPTIONS),
             fetch(`/api/menu-items?tenantId=${tenantId}`, NO_STORE_FETCH_OPTIONS),
             fetch(`/api/users?tenantId=${tenantId}`, NO_STORE_FETCH_OPTIONS),
             fetch(`/api/categories?tenantId=${tenantId}`, NO_STORE_FETCH_OPTIONS),
+            fetch(`/api/inventory?tenantId=${tenantId}`, NO_STORE_FETCH_OPTIONS),
+            fetch(`/api/suppliers?tenantId=${tenantId}`, NO_STORE_FETCH_OPTIONS),
           ])
-          if (!ordersRes.ok || !menuRes.ok || !usersRes.ok || !categoriesRes.ok) return
-          const [orders, menuItems, users, categories] = await Promise.all([
-            ordersRes.json(), menuRes.json(), usersRes.json(), categoriesRes.json(),
+          if (!ordersRes.ok || !menuRes.ok || !usersRes.ok || !categoriesRes.ok || !inventoryRes.ok || !suppliersRes.ok) return
+          const [orders, menuItems, users, categories, inventoryItems, suppliers] = await Promise.all([
+            ordersRes.json(), menuRes.json(), usersRes.json(), categoriesRes.json(), inventoryRes.json(), suppliersRes.json(),
           ])
           const parsedOrders = orders.map((o: any) => ({ ...o, createdAt: new Date(o.createdAt), updatedAt: new Date(o.updatedAt) }))
           const parsedUsers = users.filter((u: any) => u.role !== 'super_admin').map((u: any) => {
@@ -338,6 +362,17 @@ export const useAppStore = create<AppState>()(
             ...category,
             sortOrder: Number(category.sortOrder ?? 0),
           }))
+          const parsedInventoryItems = inventoryItems.map((item: InventoryItem) => ({
+            ...item,
+            quantity: Number(item.quantity ?? 0),
+            minQuantity: Number(item.minQuantity ?? 0),
+            costPerUnit: Number(item.costPerUnit ?? 0),
+            lastRestocked: item.lastRestocked ? new Date(item.lastRestocked) : undefined,
+          }))
+          const parsedSuppliers = suppliers.map((supplier: Supplier) => ({
+            ...supplier,
+            isActive: supplier.isActive ?? true,
+          }))
           if (parsedOrders.length === 0) {
             existingOrders.filter(order => order.tenantId === tenantId).forEach(order => apiSync('/api/orders', 'POST', order))
           }
@@ -350,6 +385,12 @@ export const useAppStore = create<AppState>()(
           if (parsedMenuItems.length === 0) {
             existingMenuItems.filter(item => item.tenantId === tenantId).forEach(item => apiSync('/api/menu-items', 'POST', item))
           }
+          if (parsedInventoryItems.length === 0) {
+            existingInventoryItems.filter(item => item.tenantId === tenantId).forEach(item => apiSync('/api/inventory', 'POST', item))
+          }
+          if (parsedSuppliers.length === 0) {
+            existingSuppliers.filter(supplier => supplier.tenantId === tenantId).forEach(supplier => apiSync('/api/suppliers', 'POST', supplier))
+          }
           const mergedCurrentUser = existingCurrentUser && existingCurrentUser.tenantId === tenantId
             ? parsedUsers.find((user: User) => user.id === existingCurrentUser.id) || existingCurrentUser
             : existingCurrentUser
@@ -358,6 +399,8 @@ export const useAppStore = create<AppState>()(
             orders: [...existingOrders.filter(order => order.tenantId !== tenantId), ...parsedOrders].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
             categories: [...existingCategories.filter(category => category.tenantId !== tenantId), ...parsedCategories],
             menuItems: [...existingMenuItems.filter(item => item.tenantId !== tenantId), ...parsedMenuItems],
+            inventoryItems: [...existingInventoryItems.filter(item => item.tenantId !== tenantId), ...parsedInventoryItems],
+            suppliers: [...existingSuppliers.filter(supplier => supplier.tenantId !== tenantId), ...parsedSuppliers],
             users: [...existingUsers.filter(user => user.tenantId !== tenantId), ...parsedUsers],
           })
         } catch (e) {
@@ -383,6 +426,9 @@ export const useAppStore = create<AppState>()(
         if (typeof nextState.sidebarOpen !== 'boolean') {
           nextState.sidebarOpen = false
         }
+        if (!Array.isArray(nextState.suppliers)) {
+          nextState.suppliers = MOCK_SUPPLIERS
+        }
         return nextState
       },
       partialize: (state) => ({
@@ -398,6 +444,7 @@ export const useAppStore = create<AppState>()(
         menuItems: state.menuItems,
         tables: state.tables,
         inventoryItems: state.inventoryItems,
+        suppliers: state.suppliers,
         attendance: state.attendance,
         tenants: state.tenants,
       }),

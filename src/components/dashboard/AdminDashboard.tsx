@@ -33,6 +33,17 @@ export default function AdminDashboard() {
   const activeOrders = tenantOrders.filter(order => !['completed', 'cancelled'].includes(order.status))
   const todayRevenue = getRevenue(todayOrders)
   const weeklyData = buildRecentTrend(tenantOrders, 7)
+  const monthlyPayroll = tenantUsers.reduce((sum, user) => sum + (user.hourlyRate || 0), 0)
+  const payrollByRole = Object.values(
+    tenantUsers.reduce<Record<string, { role: string; count: number; amount: number }>>((accumulator, user) => {
+      const key = user.role
+      const current = accumulator[key] || { role: user.role, count: 0, amount: 0 }
+      current.count += 1
+      current.amount += user.hourlyRate || 0
+      accumulator[key] = current
+      return accumulator
+    }, {})
+  ).sort((left, right) => right.amount - left.amount)
   const categoryLookup = new Map([
     ...categories.filter(category => category.tenantId === currentTenant.id).map(category => [category.id, category.name] as const),
     ...Array.from(new Set(tenantOrders.flatMap(order => order.items.map(item => item.menuItem?.categoryId).filter(Boolean))))
@@ -96,6 +107,15 @@ export default function AdminDashboard() {
       bg: 'bg-amber-50 border-amber-200',
       trend: 'neutral',
     },
+    {
+      label: 'Monthly Payroll',
+      value: taxEngine.formatCurrency(monthlyPayroll),
+      sub: `${tenantUsers.length} staff salaries combined`,
+      icon: DollarSign,
+      color: 'text-violet-600',
+      bg: 'bg-violet-50 border-violet-200',
+      trend: 'neutral',
+    },
   ]
 
   return (
@@ -117,7 +137,7 @@ export default function AdminDashboard() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
         {statsCards.map(card => (
           <div key={card.label} className={cn('bg-white rounded-2xl p-5 border shadow-sm', card.bg)}>
             <div className="flex items-start justify-between mb-3">
@@ -132,6 +152,67 @@ export default function AdminDashboard() {
             <div className="text-slate-400 text-xs mt-1">{card.sub}</div>
           </div>
         ))}
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1.1fr)_minmax(320px,0.9fr)] gap-6">
+        <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm">
+          <div className="flex items-center justify-between mb-4 gap-3">
+            <div>
+              <h3 className="text-gray-900 font-semibold">Payroll Amount Overview</h3>
+              <p className="text-slate-500 text-xs mt-1">Combined salary cost across all HR roles for this restaurant.</p>
+            </div>
+            <div className="rounded-full bg-violet-50 border border-violet-200 px-3 py-1 text-xs font-semibold text-violet-700">
+              {taxEngine.formatCurrency(monthlyPayroll)} / month
+            </div>
+          </div>
+          <div className="grid sm:grid-cols-3 gap-4">
+            {[
+              { label: 'Gross Salaries', value: monthlyPayroll, color: 'text-violet-700', bg: 'bg-violet-50 border-violet-200' },
+              { label: 'Estimated Deductions', value: monthlyPayroll * 0.1, color: 'text-red-600', bg: 'bg-red-50 border-red-200' },
+              { label: 'Projected Net Payroll', value: monthlyPayroll * 0.9, color: 'text-emerald-700', bg: 'bg-emerald-50 border-emerald-200' },
+            ].map(card => (
+              <div key={card.label} className={cn('rounded-2xl border p-4', card.bg)}>
+                <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Payroll</div>
+                <div className={cn('text-2xl font-black mt-2', card.color)}>{taxEngine.formatCurrency(card.value)}</div>
+                <div className="text-xs text-slate-500 mt-1">{card.label}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm">
+          <div className="flex items-center justify-between mb-4 gap-3">
+            <div>
+              <h3 className="text-gray-900 font-semibold">Salary by Role</h3>
+              <p className="text-slate-500 text-xs mt-1">Role-wise HR amount distribution for the admin panel.</p>
+            </div>
+            <div className="text-xs text-slate-500">{currencySymbol} monthly</div>
+          </div>
+          <div className="space-y-3">
+            {payrollByRole.length > 0 ? payrollByRole.map(role => {
+              const percentage = monthlyPayroll > 0 ? (role.amount / monthlyPayroll) * 100 : 0
+              return (
+                <div key={role.role} className="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3">
+                  <div className="flex items-center justify-between gap-3 text-sm">
+                    <span className="font-medium text-slate-900 capitalize">{role.role.replace(/_/g, ' ')}</span>
+                    <span className="text-slate-500">{role.count} staff</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-3 text-xs text-slate-500 mt-2">
+                    <span>{taxEngine.formatCurrency(role.amount)}</span>
+                    <span>{percentage.toFixed(0)}% of payroll</span>
+                  </div>
+                  <div className="mt-3 h-2 rounded-full bg-white overflow-hidden border border-gray-200">
+                    <div className="h-full rounded-full bg-gradient-to-r from-violet-600 to-fuchsia-500" style={{ width: `${percentage}%` }} />
+                  </div>
+                </div>
+              )
+            }) : (
+              <div className="text-center py-8 text-slate-500 text-sm">
+                No salary records available yet.
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

@@ -33,6 +33,7 @@ function normalizeTenantPayload(payload: any) {
     validUntil: payload.validUntil ? new Date(payload.validUntil) : null,
     invoiceFooter: payload.invoiceFooter || null,
     primaryColor: payload.primaryColor || null,
+    secondaryColor: payload.secondaryColor || null,
     adminPassword: payload.adminPassword || null,
     kitchenPrinterName: payload.kitchenPrinterName || null,
     kitchenPrinterConnection: payload.kitchenPrinterConnection || null,

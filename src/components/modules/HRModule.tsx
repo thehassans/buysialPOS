@@ -12,9 +12,9 @@ import {
 const ALL_ROLES: UserRole[] = ['admin', 'manager', 'waiter', 'cashier', 'chef']
 const MANAGER_ROLES: UserRole[] = ['waiter', 'cashier', 'chef']
 
-const EMPTY_FORM: { name: string; email: string; password: string; role: UserRole; hourlyRate: number; isActive: boolean; language: Language } = {
+const EMPTY_FORM: { name: string; email: string; password: string; role: UserRole; salary: number; isActive: boolean; language: Language } = {
   name: '', email: '', password: '', role: 'waiter',
-  hourlyRate: 0, isActive: true, language: 'en',
+  salary: 0, isActive: true, language: 'en',
 }
 
 export default function HRModule() {
@@ -32,7 +32,7 @@ export default function HRModule() {
   const today = new Date().toISOString().split('T')[0]
   const tenantAttendance = attendance.filter(record => record.tenantId === tenantId && record.date === today)
   const presentUserIds = new Set(tenantAttendance.filter(record => !record.clockOut).map(record => record.userId))
-  const monthlyPayroll = tenantUsers.reduce((sum, user) => sum + ((user.hourlyRate || 0) * 176), 0)
+  const monthlyPayroll = tenantUsers.reduce((sum, user) => sum + (user.hourlyRate || 0), 0)
   const currencySymbol = getCurrencySymbol(currentTenant?.currency || 'SAR')
 
   const toggleClockIn = (userId: string) => {
@@ -47,14 +47,14 @@ export default function HRModule() {
 
   const openEdit = (user: User) => {
     setEditingUser(user)
-    setForm({ name: user.name, email: user.email, password: '', role: user.role, hourlyRate: user.hourlyRate || 0, isActive: user.isActive, language: user.language })
+    setForm({ name: user.name, email: user.email, password: '', role: user.role, salary: user.hourlyRate || 0, isActive: user.isActive, language: user.language })
     setShowModal(true)
   }
 
   const handleSave = () => {
     if (!form.name || !form.email) return
     if (editingUser) {
-      const updates: Partial<User> = { name: form.name, email: form.email, role: form.role, hourlyRate: form.hourlyRate, isActive: form.isActive, language: form.language }
+      const updates: Partial<User> = { name: form.name, email: form.email, role: form.role, hourlyRate: form.salary, isActive: form.isActive, language: form.language }
       if (form.password) updates.password = form.password
       updateUser(editingUser.id, updates)
     } else {
@@ -63,7 +63,7 @@ export default function HRModule() {
         name: form.name, email: form.email,
         password: form.password || `${form.name.split(' ')[0].toLowerCase()}123`,
         role: form.role,
-        hourlyRate: form.hourlyRate, isActive: form.isActive,
+        hourlyRate: form.salary, isActive: form.isActive,
         language: form.language, createdAt: new Date(),
       })
     }
@@ -164,8 +164,8 @@ export default function HRModule() {
                   {ROLE_LABELS[user.role]}
                 </span>
                 <div className="flex items-center gap-2">
-                  {user.hourlyRate && user.hourlyRate > 0 && (
-                    <span className="text-slate-500 text-xs">{formatCurrency(user.hourlyRate, currentTenant?.currency || 'SAR')}/hr</span>
+                  {(user.hourlyRate || 0) > 0 && (
+                    <span className="text-slate-500 text-xs">{formatCurrency(user.hourlyRate || 0, currentTenant?.currency || 'SAR')} salary</span>
                   )}
                   {!user.isActive && <span className="text-[10px] text-red-500 font-medium">Inactive</span>}
                 </div>
@@ -226,31 +226,43 @@ export default function HRModule() {
       )}
 
       {tab === 'payroll' && (
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+        <div className="space-y-4">
+          <div className="grid md:grid-cols-3 gap-4">
+            {[
+              { label: 'Gross Salaries', value: monthlyPayroll, color: 'text-emerald-700', bg: 'bg-emerald-50 border-emerald-200' },
+              { label: 'Estimated Deductions', value: monthlyPayroll * 0.1, color: 'text-red-600', bg: 'bg-red-50 border-red-200' },
+              { label: 'Projected Net Payroll', value: monthlyPayroll * 0.9, color: 'text-blue-700', bg: 'bg-blue-50 border-blue-200' },
+            ].map(card => (
+              <div key={card.label} className={cn('rounded-2xl border p-4', card.bg)}>
+                <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Payroll</div>
+                <div className={cn('text-2xl font-black mt-2', card.color)}>{formatCurrency(card.value, currentTenant?.currency || 'SAR')}</div>
+                <div className="text-xs text-slate-500 mt-1">{card.label}</div>
+              </div>
+            ))}
+          </div>
+
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
                 <tr className="border-b border-gray-100">
-                  {['Employee', 'Role', 'Hours', 'Rate/hr', 'Gross Pay', 'Deductions', 'Net Pay'].map(h => (
+                  {['Employee', 'Role', 'Salary', 'Deductions', 'Net Pay'].map(h => (
                     <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-emerald-600 uppercase">{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {tenantUsers.filter(u => u.hourlyRate && u.hourlyRate > 0).map(user => {
-                  const hours = 176
-                  const gross = (user.hourlyRate || 0) * hours
-                  const deductions = gross * 0.1
-                  const net = gross - deductions
+                {tenantUsers.filter(user => (user.hourlyRate || 0) > 0).map(user => {
+                  const salary = user.hourlyRate || 0
+                  const deductions = salary * 0.1
+                  const net = salary - deductions
                   return (
                     <tr key={user.id} className="border-b border-gray-100 hover:bg-gray-50">
                       <td className="px-4 py-3">
                         <div className="text-gray-900 text-sm font-medium">{user.name}</div>
                       </td>
                       <td className="px-4 py-3 text-emerald-500 text-sm">{ROLE_LABELS[user.role]}</td>
-                      <td className="px-4 py-3 text-gray-900 text-sm">{hours}h</td>
-                      <td className="px-4 py-3 text-emerald-700 text-sm">{formatCurrency(user.hourlyRate || 0, currentTenant?.currency || 'SAR')}</td>
-                      <td className="px-4 py-3 text-gray-900 font-medium text-sm">{formatCurrency(gross, currentTenant?.currency || 'SAR')}</td>
+                      <td className="px-4 py-3 text-gray-900 font-medium text-sm">{formatCurrency(salary, currentTenant?.currency || 'SAR')}</td>
                       <td className="px-4 py-3 text-red-600 text-sm">{formatCurrency(deductions, currentTenant?.currency || 'SAR')}</td>
                       <td className="px-4 py-3 text-emerald-700 font-bold text-sm">{formatCurrency(net, currentTenant?.currency || 'SAR')}</td>
                     </tr>
@@ -258,6 +270,7 @@ export default function HRModule() {
                 })}
               </tbody>
             </table>
+          </div>
           </div>
         </div>
       )}
@@ -321,13 +334,13 @@ export default function HRModule() {
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-slate-600 block mb-1">Hourly Rate ({currencySymbol})</label>
+                  <label className="text-xs font-semibold text-slate-600 block mb-1">Salary ({currencySymbol})</label>
                   <input
                     type="number"
                     min="0"
                     step="1"
-                    value={form.hourlyRate || ''}
-                    onChange={e => setForm(f => ({ ...f, hourlyRate: parseFloat(e.target.value) || 0 }))}
+                    value={form.salary || ''}
+                    onChange={e => setForm(f => ({ ...f, salary: parseFloat(e.target.value) || 0 }))}
                     className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-emerald-400"
                   />
                 </div>

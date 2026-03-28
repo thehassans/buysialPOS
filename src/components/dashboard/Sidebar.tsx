@@ -6,9 +6,7 @@ import {
   QrCode, Settings, BarChart3, Building2, LogOut, ChevronLeft,
   ChevronRight, Receipt, UtensilsCrossed, CreditCard
 } from 'lucide-react'
-import { cn } from '@/lib/utils'
-import { ROLE_LABELS } from '@/lib/utils'
-import { getInitials } from '@/lib/utils'
+import { cn, getInitials, getReadableTextColor, mixHexColors, normalizeHexColor, ROLE_LABELS, withAlpha } from '@/lib/utils'
 import { useRouter } from 'next/navigation'
 import TenantBrandMark from '@/components/shared/TenantBrandMark'
 
@@ -46,6 +44,7 @@ const NAV_ITEMS = {
   ],
   cashier: [
     { id: 'pos', label: 'New Order', labelAr: 'طلب جديد', icon: ShoppingCart },
+    { id: 'my-orders', label: 'Orders', labelAr: 'الطلبات', icon: Receipt },
     { id: 'cashier', label: 'Payments', labelAr: 'المدفوعات', icon: CreditCard },
     { id: 'kds', label: 'Kitchen Display', labelAr: 'شاشة المطبخ', icon: ChefHat },
     { id: 'reports', label: 'Reports', labelAr: 'التقارير', icon: BarChart3 },
@@ -59,6 +58,11 @@ export default function Sidebar() {
 
   const isAr = language === 'ar'
   const items = NAV_ITEMS[currentUser.role] || NAV_ITEMS.admin
+  const primaryColor = normalizeHexColor(currentTenant?.primaryColor)
+  const navigationColor = normalizeHexColor(currentTenant?.secondaryColor || mixHexColors(primaryColor, '#1e293b', 0.3), '#0f766e')
+  const sidebarSurface = mixHexColors(navigationColor, '#0f172a', 0.32)
+  const sidebarTextColor = getReadableTextColor(mixHexColors(navigationColor, '#ffffff', 0.1))
+  const mutedSidebarText = sidebarTextColor === '#ffffff' ? withAlpha('#ffffff', 0.72) : withAlpha('#0f172a', 0.68)
   const handleNavClick = (view: string) => {
     setActiveView(view)
     if (typeof window !== 'undefined' && window.innerWidth < 768 && sidebarOpen) {
@@ -77,17 +81,21 @@ export default function Sidebar() {
       )}
       
       <aside className={cn(
-        'flex flex-col bg-white transition-all duration-300 z-40 shadow-2xl md:shadow-sm h-screen',
-        isAr ? 'md:border-l border-gray-200' : 'md:border-r border-gray-200',
+        'flex flex-col transition-all duration-300 z-40 shadow-2xl h-screen backdrop-blur-xl',
+        isAr ? 'md:border-l' : 'md:border-r',
         'fixed md:relative inset-y-0',
         sidebarOpen 
           ? 'translate-x-0 w-[82vw] max-w-72 md:w-60' 
           : isAr 
             ? 'translate-x-full md:translate-x-0 md:w-16' 
             : '-translate-x-full md:translate-x-0 md:w-16'
-      )}>
+      )}
+      style={{
+        background: `linear-gradient(180deg, ${mixHexColors(navigationColor, '#ffffff', 0.08)} 0%, ${sidebarSurface} 100%)`,
+        borderColor: withAlpha('#ffffff', sidebarTextColor === '#ffffff' ? 0.12 : 0.3),
+      }}>
         {/* Logo */}
-        <div className="flex items-center gap-3 p-4 border-b border-gray-100 h-16">
+        <div className="flex items-center gap-3 p-4 border-b h-16" style={{ borderColor: withAlpha('#ffffff', sidebarTextColor === '#ffffff' ? 0.12 : 0.28) }}>
         <TenantBrandMark
           logo={currentTenant?.logo}
           name={currentTenant?.name || 'Buysial ERP'}
@@ -96,8 +104,8 @@ export default function Sidebar() {
         />
         {sidebarOpen && (
           <div className="overflow-hidden">
-            <div className="font-bold text-gray-900 text-sm truncate">Buysial ERP</div>
-            <div className="text-slate-500 text-xs truncate">{currentTenant?.name}</div>
+            <div className="font-bold text-sm truncate" style={{ color: sidebarTextColor }}>Buysial ERP</div>
+            <div className="text-xs truncate" style={{ color: mutedSidebarText }}>{currentTenant?.name}</div>
           </div>
         )}
       </div>
@@ -110,35 +118,43 @@ export default function Sidebar() {
             onClick={() => handleNavClick(item.id)}
             className={cn(
               'w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all group',
-              activeView === item.id
-                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                : 'text-slate-500 hover:bg-gray-50 hover:text-gray-800'
+              activeView === item.id ? 'border shadow-lg' : 'border border-transparent'
             )}
+            style={activeView === item.id
+              ? {
+                  background: `linear-gradient(135deg, ${primaryColor} 0%, ${mixHexColors(primaryColor, navigationColor, 0.42)} 100%)`,
+                  color: getReadableTextColor(mixHexColors(primaryColor, navigationColor, 0.42)),
+                  borderColor: withAlpha('#ffffff', sidebarTextColor === '#ffffff' ? 0.12 : 0.16),
+                }
+              : {
+                  color: mutedSidebarText,
+                  backgroundColor: withAlpha('#ffffff', sidebarTextColor === '#ffffff' ? 0.04 : 0.46),
+                }}
           >
-            <item.icon className={cn('w-4 h-4 flex-shrink-0', activeView === item.id ? 'text-emerald-600' : 'text-slate-400 group-hover:text-emerald-600')} />
+            <item.icon className="w-4 h-4 flex-shrink-0" style={{ color: activeView === item.id ? getReadableTextColor(mixHexColors(primaryColor, navigationColor, 0.42)) : mutedSidebarText }} />
             {sidebarOpen && <span className="truncate">{isAr ? item.labelAr : item.label}</span>}
           </button>
         ))}
       </nav>
 
       {/* User Profile */}
-      <div className="p-3 border-t border-gray-100">
+      <div className="p-3 border-t" style={{ borderColor: withAlpha('#ffffff', sidebarTextColor === '#ffffff' ? 0.12 : 0.28) }}>
         {sidebarOpen ? (
-          <div className="flex items-center gap-3 p-2 rounded-xl hover:bg-gray-50 cursor-pointer group">
-            <div className="w-8 h-8 rounded-full bg-emerald-100 border border-emerald-200 flex items-center justify-center text-emerald-700 text-xs font-bold flex-shrink-0">
+          <div className="flex items-center gap-3 p-2 rounded-xl cursor-pointer group" style={{ backgroundColor: withAlpha('#ffffff', sidebarTextColor === '#ffffff' ? 0.08 : 0.42) }}>
+            <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0" style={{ backgroundColor: withAlpha('#ffffff', sidebarTextColor === '#ffffff' ? 0.14 : 0.74), color: sidebarTextColor }}>
               {getInitials(currentUser.name)}
             </div>
             <div className="overflow-hidden flex-1">
-              <div className="text-gray-900 text-xs font-medium truncate">{currentUser.name}</div>
-              <div className="text-slate-500 text-xs">{ROLE_LABELS[currentUser.role]}</div>
+              <div className="text-xs font-medium truncate" style={{ color: sidebarTextColor }}>{currentUser.name}</div>
+              <div className="text-xs" style={{ color: mutedSidebarText }}>{ROLE_LABELS[currentUser.role]}</div>
             </div>
-            <button onClick={() => { logout(); router.push('/login') }} className="text-slate-400 hover:text-red-500 transition-colors">
+            <button onClick={() => { logout(); router.push('/login') }} className="transition-colors" style={{ color: mutedSidebarText }}>
               <LogOut className="w-3.5 h-3.5" />
             </button>
           </div>
         ) : (
           <div className="flex justify-center">
-            <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 text-xs font-bold">
+            <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold" style={{ backgroundColor: withAlpha('#ffffff', sidebarTextColor === '#ffffff' ? 0.14 : 0.7), color: sidebarTextColor }}>
               {getInitials(currentUser.name)}
             </div>
           </div>
@@ -149,9 +165,10 @@ export default function Sidebar() {
       <button
         onClick={toggleSidebar}
         className={cn(
-          'hidden md:flex absolute top-20 w-6 h-6 rounded-full bg-white border border-gray-200 shadow items-center justify-center text-slate-500 hover:text-emerald-600 z-30',
+          'hidden md:flex absolute top-20 w-6 h-6 rounded-full shadow items-center justify-center z-30 backdrop-blur-xl',
           isAr ? '-left-3' : '-right-3'
         )}
+        style={{ backgroundColor: withAlpha('#ffffff', sidebarTextColor === '#ffffff' ? 0.9 : 0.92), color: navigationColor, border: `1px solid ${withAlpha(navigationColor, 0.18)}` }}
       >
         {isAr
           ? (sidebarOpen ? <ChevronRight className="w-3 h-3" /> : <ChevronLeft className="w-3 h-3" />)

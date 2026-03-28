@@ -26,6 +26,7 @@ model Tenant {
   validUntil       DateTime?
   invoiceFooter    String?
   primaryColor     String?
+  secondaryColor   String?
   adminPassword    String?
   kitchenPrinterName       String?
   kitchenPrinterConnection String?
@@ -105,6 +106,36 @@ model User {
   isActive   Boolean  @default(true)
   hourlyRate Float?
   createdAt  DateTime @default(now())
+}
+
+model InventoryItem {
+  mongoId        String   @id @default(auto()) @map("_id") @db.ObjectId
+  id             String   @unique
+  tenantId       String
+  name           String
+  nameAr         String?
+  unit           String
+  quantity       Float
+  minQuantity    Float
+  costPerUnit    Float
+  supplierId     String?
+  category       String
+  lastRestocked  DateTime?
+}
+
+model Supplier {
+  mongoId       String   @id @default(auto()) @map("_id") @db.ObjectId
+  id            String   @unique
+  tenantId      String
+  name          String
+  contact       String
+  email         String?
+  phone         String
+  address       String?
+  category      String
+  paymentTerms  String?
+  notes         String?
+  isActive      Boolean  @default(true)
 }
 
 model SyncQueue {

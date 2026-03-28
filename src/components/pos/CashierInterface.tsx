@@ -2,14 +2,15 @@
 
 import { useEffect, useState } from 'react'
 import { useAppStore } from '@/store/app-store'
-import { TaxEngine, generateZATCAQRData } from '@/lib/country-config'
+import { TaxEngine } from '@/lib/country-config'
+import { isTenantInvoiceQrEnabled } from '@/lib/tenant-compliance'
 import { cn, formatDate } from '@/lib/utils'
 import { Order } from '@/lib/types'
 import {
   Receipt, CreditCard, Banknote, Smartphone, Check,
-  Printer, Download, X, AlertCircle, QrCode, UtensilsCrossed, ShoppingBag, Edit
+  Printer, UtensilsCrossed, ShoppingBag, Edit
 } from 'lucide-react'
-import { printCustomerInvoice } from './InvoicePrint'
+import { buildInvoiceZatcaQrDataUrl, printCustomerInvoice } from './InvoicePrint'
 import { buildPrintFingerprint, hasPrintedJob, markPrintedJob, shouldAutoPrintCashier } from '@/lib/device-print'
 import TenantBrandMark from '@/components/shared/TenantBrandMark'
 
@@ -19,6 +20,7 @@ export default function CashierInterface() {
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'card' | 'digital'>('cash')
   const [paymentDone, setPaymentDone] = useState(false)
   const [showInvoice, setShowInvoice] = useState(false)
+  const [invoiceQrDataUrl, setInvoiceQrDataUrl] = useState('')
 
   useEffect(() => {
     if (!currentTenant || !shouldAutoPrintCashier(currentTenant)) return
@@ -47,9 +49,31 @@ export default function CashierInterface() {
     })
   }, [orders, currentTenant])
 
+  useEffect(() => {
+    let cancelled = false
+
+    const loadInvoiceQr = async () => {
+      if (!currentTenant || !selectedOrder || !showInvoice || !isTenantInvoiceQrEnabled(currentTenant.id, currentTenant.countryCode)) {
+        setInvoiceQrDataUrl('')
+        return
+      }
+      const dataUrl = await buildInvoiceZatcaQrDataUrl(selectedOrder, currentTenant)
+      if (!cancelled) {
+        setInvoiceQrDataUrl(dataUrl)
+      }
+    }
+
+    void loadInvoiceQr()
+
+    return () => {
+      cancelled = true
+    }
+  }, [currentTenant, selectedOrder, showInvoice])
+
   if (!currentTenant) return null
   const taxEngine = new TaxEngine(currentTenant.countryCode, currentTenant.vatRate)
   const pendingOrders = orders.filter(o => o.tenantId === currentTenant.id && !o.isPaid && o.status !== 'cancelled')
+  const showComplianceQr = isTenantInvoiceQrEnabled(currentTenant.id, currentTenant.countryCode)
 
   const processPayment = () => {
     if (!selectedOrder) return
@@ -64,17 +88,6 @@ export default function CashierInterface() {
       setShowInvoice(false)
       setSelectedOrder(null)
     }, 3000)
-  }
-
-  const getZatcaQR = (order: Order) => {
-    if (currentTenant.countryCode !== 'KSA') return ''
-    return generateZATCAQRData({
-      sellerName: currentTenant.name,
-      vatNumber: currentTenant.vatNumber || '300000000000003',
-      timestamp: new Date(order.createdAt).toISOString(),
-      total: order.total,
-      vatAmount: order.vatAmount,
-    })
   }
 
   if (paymentDone) {
@@ -262,11 +275,15 @@ export default function CashierInterface() {
                     </div>
                   </div>
 
-                  {currentTenant.countryCode === 'KSA' && (
+                  {showComplianceQr && (
                     <div className="text-center pt-2">
                       <div className="text-xs text-emerald-600 mb-2">{taxEngine.getComplianceLabel()}</div>
-                      <div className="w-24 h-24 bg-white rounded-xl p-2 mx-auto flex items-center justify-center">
-                        <QrCode className="w-16 h-16 text-[#0a0f0d]" />
+                      <div className="w-28 h-28 bg-white rounded-2xl border border-slate-200 p-3 mx-auto shadow-sm flex items-center justify-center">
+                        {invoiceQrDataUrl ? (
+                          <img src={invoiceQrDataUrl} alt="ZATCA QR" className="w-full h-full object-contain" />
+                        ) : (
+                          <div className="text-[10px] text-slate-400">Generating QR…</div>
+                        )}
                       </div>
                       <div className="text-[10px] text-emerald-700 mt-1">ZATCA QR Code</div>
                     </div>

@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useAppStore } from '@/store/app-store'
 import { Bell, Globe, ArrowLeft, ArrowRight, LogOut, Cloud, CloudOff, RefreshCw, Menu } from 'lucide-react'
-import { ROLE_LABELS, ROLE_COLORS, cn } from '@/lib/utils'
+import { ROLE_LABELS, ROLE_COLORS, cn, getReadableTextColor, mixHexColors, normalizeHexColor, withAlpha } from '@/lib/utils'
 import { useRouter } from 'next/navigation'
 import { getCountryConfig } from '@/lib/country-config'
 import { processQueue, getPendingCount } from '@/lib/sync-queue'
@@ -64,6 +64,19 @@ export default function TopBar() {
 
   const countryConfig = getCountryConfig(currentTenant.countryCode)
   const isAr = language === 'ar'
+  const primaryColor = normalizeHexColor(currentTenant.primaryColor)
+  const secondaryColor = normalizeHexColor(currentTenant.secondaryColor || mixHexColors(primaryColor, '#0f172a', 0.35))
+  const headerTone = mixHexColors(primaryColor, secondaryColor, 0.22)
+  const headerDepthTone = mixHexColors(primaryColor, '#0f172a', 0.18)
+  const headerTextColor = getReadableTextColor(headerTone)
+  const mutedTextColor = headerTextColor === '#ffffff' ? withAlpha('#ffffff', 0.76) : withAlpha('#0f172a', 0.68)
+  const glassBackground = headerTextColor === '#ffffff' ? withAlpha('#ffffff', 0.14) : withAlpha('#ffffff', 0.72)
+  const glassBorder = headerTextColor === '#ffffff' ? withAlpha('#ffffff', 0.18) : withAlpha(primaryColor, 0.18)
+  const iconButtonStyle = {
+    color: headerTextColor,
+    backgroundColor: glassBackground,
+    borderColor: glassBorder,
+  }
   const VIEW_LABELS: Record<string, string> = {
     dashboard: 'Dashboard',
     pos: 'Point of Sale',
@@ -78,23 +91,30 @@ export default function TopBar() {
   }
 
   return (
-    <header className="min-h-16 bg-white border-b border-gray-200 flex flex-wrap items-center justify-between gap-3 px-3 sm:px-6 py-3 sm:py-2 flex-shrink-0 shadow-sm">
+    <header
+      className="min-h-16 flex flex-wrap items-center justify-between gap-3 px-3 sm:px-6 py-3 sm:py-2 flex-shrink-0 shadow-[0_18px_60px_rgba(15,23,42,0.12)] border-b"
+      style={{
+        background: `linear-gradient(135deg, ${primaryColor} 0%, ${headerTone} 52%, ${headerDepthTone} 100%)`,
+        borderColor: withAlpha('#ffffff', headerTextColor === '#ffffff' ? 0.12 : 0.4),
+      }}
+    >
       <div className="flex items-center gap-3 md:gap-4 min-w-0 flex-1">
-        <button onClick={toggleSidebar} className="md:hidden p-1.5 -ml-2 text-slate-500 hover:text-emerald-600 rounded-lg hover:bg-gray-100 transition-colors">
+        <button onClick={toggleSidebar} className="md:hidden p-1.5 -ml-2 rounded-lg transition-colors border" style={iconButtonStyle}>
           <Menu className="w-5 h-5" />
         </button>
-        <button onClick={() => router.push('/')} className="hidden md:block text-slate-400 hover:text-emerald-600 transition-colors">
+        <button onClick={() => router.push('/')} className="hidden md:block transition-colors" style={{ color: mutedTextColor }}>
           {isAr ? <ArrowRight className="w-4 h-4" /> : <ArrowLeft className="w-4 h-4" />}
         </button>
         <TenantBrandMark
           logo={currentTenant.logo}
           name={currentTenant.name}
-          className="hidden sm:flex w-9 h-9 rounded-xl flex-shrink-0"
+          className="hidden sm:flex w-10 h-10 rounded-2xl flex-shrink-0"
+          imageClassName="drop-shadow-[0_8px_20px_rgba(15,23,42,0.18)]"
           initialsClassName="text-xs"
         />
         <div className="min-w-0">
-          <h1 className="text-gray-900 font-bold text-sm md:text-base truncate max-w-[120px] sm:max-w-xs">{VIEW_LABELS[activeView] || 'Dashboard'}</h1>
-          <div className="flex items-center gap-2 text-xs text-slate-500">
+          <h1 className="font-bold text-sm md:text-base truncate max-w-[120px] sm:max-w-xs" style={{ color: headerTextColor }}>{VIEW_LABELS[activeView] || 'Dashboard'}</h1>
+          <div className="flex items-center gap-2 text-xs" style={{ color: mutedTextColor }}>
             <span className="truncate max-w-[80px] sm:max-w-[150px]">{currentTenant.name}</span>
             <span>·</span>
             <span className="flex items-center gap-1 flex-shrink-0">
@@ -113,14 +133,14 @@ export default function TopBar() {
           onClick={handleManualSync}
           disabled={!isOnline || isSyncing}
           className={cn(
-            "relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all shadow-sm",
+            "relative flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium border transition-all shadow-sm backdrop-blur-xl",
             !isOnline
-              ? "bg-red-50 text-red-700 border-red-200 cursor-not-allowed"
+              ? "bg-red-500/15 text-white border-white/10 cursor-not-allowed"
               : isSyncing
-                ? "bg-blue-50 text-blue-700 border-blue-200 cursor-wait"
+                ? "bg-blue-500/20 text-white border-white/10 cursor-wait"
                 : pendingCount > 0
-                  ? "bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100"
-                  : "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100"
+                  ? "bg-white/18 text-white border-white/15 hover:bg-white/24"
+                  : "bg-white/14 text-white border-white/15 hover:bg-white/20"
           )}
           title={!isOnline ? 'Offline — changes queued locally' : lastSynced ? `Last synced: ${lastSynced.toLocaleTimeString()}` : 'Sync with cloud'}
         >
@@ -136,25 +156,26 @@ export default function TopBar() {
         </button>
         <button
           onClick={() => setLanguage(isAr ? 'en' : 'ar')}
-          className="flex items-center gap-1.5 px-2.5 py-1.5 bg-gray-50 rounded-lg text-xs font-medium text-slate-600 hover:text-emerald-700 transition-all border border-gray-200 hover:border-emerald-300"
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-medium transition-all border"
+          style={iconButtonStyle}
         >
           <Globe className="w-3.5 h-3.5" />
           {isAr ? 'EN' : 'عربي'}
         </button>
 
         <div className="relative hidden sm:block">
-          <button className="w-8 h-8 bg-gray-50 rounded-lg flex items-center justify-center text-slate-500 hover:text-emerald-700 transition-colors border border-gray-200">
+          <button className="w-8 h-8 rounded-xl flex items-center justify-center transition-colors border" style={iconButtonStyle}>
             <Bell className="w-4 h-4" />
           </button>
           <div className={cn('absolute -top-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center text-white text-[9px] font-bold', isAr ? '-left-1' : '-right-1')}>3</div>
         </div>
 
-        <div className="flex items-center gap-2 px-2.5 sm:px-3 py-1.5 bg-gray-50 rounded-lg border border-gray-200 min-w-0">
-          <div className="w-5 h-5 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 text-[10px] font-bold">
+        <div className="flex items-center gap-2 px-2.5 sm:px-3 py-1.5 rounded-xl border min-w-0 backdrop-blur-xl" style={iconButtonStyle}>
+          <div className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold" style={{ backgroundColor: withAlpha('#ffffff', headerTextColor === '#ffffff' ? 0.14 : 0.58), color: headerTextColor }}>
             {currentUser.name.charAt(0)}
           </div>
           <div className="hidden md:block">
-            <div className="text-xs font-medium text-gray-900">{currentUser.name.split(' ')[0]}</div>
+            <div className="text-xs font-medium" style={{ color: headerTextColor }}>{currentUser.name.split(' ')[0]}</div>
           </div>
           <span className={cn('text-[10px] px-1.5 py-0.5 rounded-md border font-medium', ROLE_COLORS[currentUser.role])}>
             {ROLE_LABELS[currentUser.role]}

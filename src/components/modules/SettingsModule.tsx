@@ -3,7 +3,8 @@
 import { ChangeEvent, useEffect, useMemo, useRef, useState } from 'react'
 import { useAppStore } from '@/store/app-store'
 import { COUNTRY_CONFIGS } from '@/lib/country-config'
-import { cn } from '@/lib/utils'
+import { cn, getReadableTextColor, mixHexColors, normalizeHexColor, withAlpha } from '@/lib/utils'
+import { getTenantComplianceSettings, setTenantComplianceSettings } from '@/lib/tenant-compliance'
 import { getDevicePrintRole, setDevicePrintRole } from '@/lib/device-print'
 import { listSystemPrinters } from '@/lib/printer-runtime'
 import { DevicePrintRole, PrinterConnectionType } from '@/lib/types'
@@ -67,6 +68,7 @@ export default function SettingsModule() {
   const [vatNumber, setVatNumber] = useState('')
   const [logo, setLogo] = useState<string | undefined>(undefined)
   const [primaryColor, setPrimaryColor] = useState('#059669')
+  const [secondaryColor, setSecondaryColor] = useState('#0f766e')
   const [deviceRole, setLocalDeviceRole] = useState<DevicePrintRole>('waiter')
   const [kitchenPrinterName, setKitchenPrinterName] = useState('')
   const [kitchenPrinterConnection, setKitchenPrinterConnection] = useState<PrinterConnectionType>('browser')
@@ -83,8 +85,8 @@ export default function SettingsModule() {
 
   const country = currentTenant?.countryCode || 'KSA'
   const features = country === 'KSA' ? ZATCA_FEATURES : country === 'UAE' ? FTA_FEATURES : OTA_FEATURES
-  const defaultEnabled: Record<string, boolean> = Object.fromEntries(features.map(f => [f.id, true]))
-  const [featureToggles, setFeatureToggles] = useState<Record<string, boolean>>(defaultEnabled)
+  const baseFeatureToggles = useMemo<Record<string, boolean>>(() => Object.fromEntries(features.map(feature => [feature.id, true])), [features])
+  const [featureToggles, setFeatureToggles] = useState<Record<string, boolean>>(baseFeatureToggles)
 
   useEffect(() => {
     if (!currentTenant) return
@@ -97,6 +99,7 @@ export default function SettingsModule() {
     setVatNumber(currentTenant.vatNumber || '')
     setLogo(currentTenant.logo)
     setPrimaryColor(currentTenant.primaryColor || '#059669')
+    setSecondaryColor(currentTenant.secondaryColor || '#0f766e')
     setKitchenPrinterName(currentTenant.kitchenPrinterName || '')
     setKitchenPrinterConnection(currentTenant.kitchenPrinterConnection || 'browser')
     setKitchenPrinterEnabled(Boolean(currentTenant.kitchenPrinterEnabled))
@@ -106,7 +109,13 @@ export default function SettingsModule() {
     setCashierPrinterEnabled(Boolean(currentTenant.cashierPrinterEnabled))
     setCashierAutoPrint(Boolean(currentTenant.cashierAutoPrint))
     setLocalDeviceRole(getDevicePrintRole(currentTenant.id))
-  }, [currentTenant])
+    const storedComplianceSettings = getTenantComplianceSettings(currentTenant.id)
+    setComplianceActive(storedComplianceSettings.complianceActive ?? true)
+    setFeatureToggles({
+      ...baseFeatureToggles,
+      ...(storedComplianceSettings.featureToggles || {}),
+    })
+  }, [baseFeatureToggles, currentTenant])
 
   useEffect(() => {
     let cancelled = false
@@ -150,6 +159,7 @@ export default function SettingsModule() {
       invoiceFooter: invoiceFooter.trim() || undefined,
       logo,
       primaryColor,
+      secondaryColor,
       kitchenPrinterName: kitchenPrinterName.trim() || undefined,
       kitchenPrinterConnection,
       kitchenPrinterEnabled,
@@ -160,6 +170,13 @@ export default function SettingsModule() {
       cashierAutoPrint,
     })
     setDevicePrintRole(deviceRole, currentTenant.id)
+    setTenantComplianceSettings(currentTenant.id, {
+      complianceActive,
+      featureToggles: {
+        ...baseFeatureToggles,
+        ...featureToggles,
+      },
+    })
     setSaved(true)
     setTimeout(() => setSaved(false), 2000)
   }
@@ -178,6 +195,12 @@ export default function SettingsModule() {
 
   if (!currentTenant) return null
   const countryConfig = COUNTRY_CONFIGS[currentTenant.countryCode]
+  const headerThemeColor = normalizeHexColor(primaryColor)
+  const navigationThemeColor = normalizeHexColor(secondaryColor, '#0f766e')
+  const headerPreviewTone = mixHexColors(headerThemeColor, navigationThemeColor, 0.24)
+  const navigationPreviewTone = mixHexColors(navigationThemeColor, '#0f172a', 0.28)
+  const headerPreviewText = getReadableTextColor(headerPreviewTone)
+  const navigationPreviewText = getReadableTextColor(navigationPreviewTone)
 
   return (
     <div className="space-y-4">
@@ -263,16 +286,128 @@ export default function SettingsModule() {
                 </button>
               </div>
             </div>
-            <div>
-              <label className="text-emerald-500 text-xs font-medium block mb-1.5">Primary Color</label>
-              <div className="flex items-center gap-3">
-                <input
-                  type="color"
-                  value={primaryColor}
-                  onChange={e => setPrimaryColor(e.target.value)}
-                  className="w-10 h-10 rounded-lg border border-gray-200 cursor-pointer"
-                />
-                <span className="text-emerald-600 text-sm font-mono">{primaryColor}</span>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <label className="text-emerald-500 text-xs font-medium block">Theme Customization</label>
+                  <p className="text-[11px] text-slate-500 mt-1">Control the dashboard header and navigation colors independently.</p>
+                </div>
+                <div className="rounded-full border border-gray-200 bg-gray-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                  Premium Brand UI
+                </div>
+              </div>
+
+              <div className="grid sm:grid-cols-2 gap-4">
+                <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 space-y-3">
+                  <div>
+                    <div className="text-sm font-semibold text-gray-900">Header Theme</div>
+                    <div className="text-xs text-slate-500 mt-1">Used for the top header gradient and key accent surfaces.</div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="color"
+                      value={primaryColor}
+                      onChange={e => setPrimaryColor(e.target.value)}
+                      className="w-11 h-11 rounded-xl border border-gray-200 cursor-pointer bg-transparent"
+                    />
+                    <div>
+                      <div className="text-xs uppercase tracking-[0.18em] text-slate-400">Header</div>
+                      <div className="text-sm font-mono text-emerald-700">{primaryColor}</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 space-y-3">
+                  <div>
+                    <div className="text-sm font-semibold text-gray-900">Navigation Theme</div>
+                    <div className="text-xs text-slate-500 mt-1">Used for the sidebar and navigation-selected surfaces.</div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="color"
+                      value={secondaryColor}
+                      onChange={e => setSecondaryColor(e.target.value)}
+                      className="w-11 h-11 rounded-xl border border-gray-200 cursor-pointer bg-transparent"
+                    />
+                    <div>
+                      <div className="text-xs uppercase tracking-[0.18em] text-slate-400">Navigation</div>
+                      <div className="text-sm font-mono text-emerald-700">{secondaryColor}</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="overflow-hidden rounded-[28px] border border-gray-200 bg-white shadow-[0_24px_70px_rgba(15,23,42,0.08)]">
+                <div
+                  className="flex items-center justify-between px-4 py-3"
+                  style={{
+                    background: `linear-gradient(135deg, ${headerThemeColor} 0%, ${headerPreviewTone} 100%)`,
+                    color: headerPreviewText,
+                  }}
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <TenantBrandMark
+                      logo={logo}
+                      name={restaurantName || currentTenant.name}
+                      className="w-10 h-10 rounded-2xl shrink-0"
+                      initialsClassName="text-xs"
+                    />
+                    <div className="min-w-0">
+                      <div className="text-sm font-semibold truncate">{restaurantName || currentTenant.name}</div>
+                      <div style={{ color: headerPreviewText === '#ffffff' ? withAlpha('#ffffff', 0.72) : withAlpha('#0f172a', 0.62) }} className="text-xs truncate">
+                        Header preview
+                      </div>
+                    </div>
+                  </div>
+                  <div className="rounded-xl border px-3 py-1.5 text-xs font-medium" style={{ borderColor: headerPreviewText === '#ffffff' ? withAlpha('#ffffff', 0.18) : withAlpha('#0f172a', 0.12), backgroundColor: headerPreviewText === '#ffffff' ? withAlpha('#ffffff', 0.12) : withAlpha('#ffffff', 0.7) }}>
+                    Active View
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-[84px_minmax(0,1fr)] min-h-[156px]">
+                  <div
+                    className="p-3 space-y-2"
+                    style={{
+                      background: `linear-gradient(180deg, ${mixHexColors(navigationThemeColor, '#ffffff', 0.06)} 0%, ${mixHexColors(navigationThemeColor, '#0f172a', 0.42)} 100%)`,
+                      color: navigationPreviewText,
+                    }}
+                  >
+                    {['Dashboard', 'QR Menu', 'Reports'].map((item, index) => (
+                      <div
+                        key={item}
+                        className="rounded-xl px-2 py-2 text-[11px] font-medium truncate border"
+                        style={index === 1
+                          ? {
+                              background: `linear-gradient(135deg, ${headerThemeColor} 0%, ${mixHexColors(headerThemeColor, navigationThemeColor, 0.36)} 100%)`,
+                              color: getReadableTextColor(mixHexColors(headerThemeColor, navigationThemeColor, 0.36)),
+                              borderColor: withAlpha('#ffffff', 0.12),
+                            }
+                          : {
+                              color: navigationPreviewText === '#ffffff' ? withAlpha('#ffffff', 0.72) : withAlpha('#0f172a', 0.62),
+                              borderColor: 'transparent',
+                            }}
+                      >
+                        {item}
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="bg-slate-50/80 p-4">
+                    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                      <div className="text-sm font-semibold text-slate-900">Dashboard Theme Preview</div>
+                      <div className="mt-1 text-xs text-slate-500">Your selected branding will apply across the header, sidebar, and premium QR presentation.</div>
+                      <div className="mt-4 grid grid-cols-3 gap-3">
+                        {[headerThemeColor, navigationThemeColor, mixHexColors(headerThemeColor, navigationThemeColor, 0.5)].map((color, index) => (
+                          <div key={`${color}-${index}`} className="rounded-2xl border border-slate-200 bg-white p-3">
+                            <div className="h-10 rounded-xl border border-white/60" style={{ backgroundColor: color }} />
+                            <div className="mt-2 text-[11px] font-medium text-slate-900">{index === 0 ? 'Header' : index === 1 ? 'Navigation' : 'Blend'}</div>
+                            <div className="text-[10px] font-mono text-slate-500 mt-1">{color}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
             <div>
@@ -338,6 +473,34 @@ export default function SettingsModule() {
                 className="w-full px-3 py-2.5 bg-white rounded-xl shadow-sm text-sm text-gray-900 placeholder-emerald-700 border border-gray-200 focus:outline-none focus:border-emerald-600 resize-none"
               />
             </div>
+
+            {currentTenant.countryCode === 'KSA' && (
+              <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 space-y-3">
+                <div className="flex items-center gap-2">
+                  <QrCode className="w-4 h-4 text-emerald-600" />
+                  <h4 className="text-sm font-semibold text-gray-900">Invoice Compliance</h4>
+                </div>
+                <p className="text-xs text-slate-500">Control whether printed customer invoices include restaurant compliance treatment and the ZATCA QR code.</p>
+                <div className="flex items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-3">
+                  <div>
+                    <div className="text-sm font-medium text-gray-900">Enable Compliance on Invoices</div>
+                    <div className="text-xs text-slate-500">Applies the restaurant compliance mode to printed invoices.</div>
+                  </div>
+                  <Toggle enabled={complianceActive} onToggle={() => setComplianceActive(!complianceActive)} />
+                </div>
+                <div className="flex items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-3">
+                  <div>
+                    <div className="text-sm font-medium text-gray-900">Show ZATCA QR Code</div>
+                    <div className="text-xs text-slate-500">Only visible when compliance is active for this restaurant.</div>
+                  </div>
+                  <Toggle
+                    enabled={featureToggles.qrCode ?? true}
+                    disabled={!complianceActive}
+                    onToggle={() => setFeatureToggles(prev => ({ ...prev, qrCode: !(prev.qrCode ?? true) }))}
+                  />
+                </div>
+              </div>
+            )}
 
             <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 space-y-3">
               <div className="flex items-center gap-2">

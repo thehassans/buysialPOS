@@ -2,32 +2,55 @@
 
 import { Order, Tenant } from '@/lib/types'
 import { TaxEngine, generateZATCAQRData, COUNTRY_CONFIGS } from '@/lib/country-config'
+import { isTenantInvoiceQrEnabled } from '@/lib/tenant-compliance'
 import { printHtmlDocument } from '@/lib/printer-runtime'
+import QRCode from 'qrcode'
 
 function getPrintableBrandMarkup(tenant: Tenant) {
   if (tenant.logo) {
-    return `<img src="${tenant.logo}" alt="${tenant.name}" style="width:48px;height:48px;object-fit:cover;border-radius:12px;border:1px solid #d1d5db;margin:0 auto 6px auto;display:block;" />`
+    return `<div class="brand-mark"><img src="${tenant.logo}" alt="${tenant.name}" /></div>`
   }
-  return `<div class="logo">🍽️</div>`
+  return `<div class="brand-mark brand-fallback">${tenant.name.charAt(0)}</div>`
 }
 
-export function printCustomerInvoice(order: Order, tenant: Tenant) {
+export function getInvoiceZatcaPayload(order: Order, tenant: Tenant) {
+  if (!isTenantInvoiceQrEnabled(tenant.id, tenant.countryCode)) return ''
+  return generateZATCAQRData({
+    sellerName: tenant.name,
+    vatNumber: tenant.vatNumber || '',
+    timestamp: new Date(order.createdAt).toISOString(),
+    total: order.total,
+    vatAmount: order.vatAmount,
+  })
+}
+
+export async function buildInvoiceZatcaQrDataUrl(order: Order, tenant: Tenant) {
+  const payload = getInvoiceZatcaPayload(order, tenant)
+  if (!payload) return ''
+  try {
+    return await QRCode.toDataURL(payload, {
+      width: 128,
+      margin: 1,
+      errorCorrectionLevel: 'M',
+      color: {
+        dark: '#0f172a',
+        light: '#ffffff',
+      },
+    })
+  } catch {
+    return ''
+  }
+}
+
+export async function printCustomerInvoice(order: Order, tenant: Tenant) {
   const taxEngine = new TaxEngine(tenant.countryCode, tenant.vatRate)
   const config = COUNTRY_CONFIGS[tenant.countryCode]
-
-  let zatcaQR = ''
-  if (tenant.countryCode === 'KSA') {
-    zatcaQR = generateZATCAQRData({
-      sellerName: tenant.name,
-      vatNumber: tenant.vatNumber || '',
-      timestamp: new Date(order.createdAt).toISOString(),
-      total: order.total,
-      vatAmount: order.vatAmount,
-    })
-  }
+  const zatcaQrDataUrl = await buildInvoiceZatcaQrDataUrl(order, tenant)
 
   const orderTypeLabel = order.orderType === 'takeaway' ? '🥡 Take Away' : '🍽️ Dine In'
   const countryFlag = tenant.countryCode === 'KSA' ? '🇸🇦' : tenant.countryCode === 'UAE' ? '🇦🇪' : '🇴🇲'
+  const accentColor = tenant.primaryColor || '#059669'
+  const metaTone = tenant.secondaryColor || '#0f766e'
 
   const html = `<!DOCTYPE html>
 <html lang="en">
@@ -37,30 +60,34 @@ export function printCustomerInvoice(order: Order, tenant: Tenant) {
   <title>Invoice ${order.invoiceNumber}</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Courier New', monospace; width: 80mm; margin: 0 auto; padding: 8px; font-size: 12px; color: #000; background: #fff; }
-    .header { text-align: center; border-bottom: 2px dashed #000; padding-bottom: 8px; margin-bottom: 8px; }
-    .logo { font-size: 18px; font-weight: bold; margin-bottom: 4px; }
-    .restaurant-name { font-size: 14px; font-weight: bold; margin-bottom: 2px; }
-    .address { font-size: 10px; color: #333; }
-    .compliance { font-size: 10px; font-weight: bold; margin-top: 4px; border: 1px solid #000; display: inline-block; padding: 2px 6px; }
-    .invoice-meta { margin: 8px 0; border-bottom: 1px dashed #000; padding-bottom: 8px; }
+    body { font-family: Inter, Arial, sans-serif; width: 80mm; margin: 0 auto; padding: 10px; font-size: 12px; color: #0f172a; background: #fff; }
+    .invoice-card { border: 1px solid #e2e8f0; border-radius: 18px; overflow: hidden; }
+    .header { text-align: center; padding: 14px 12px 12px 12px; margin-bottom: 8px; background: linear-gradient(180deg, ${accentColor} 0%, ${metaTone} 100%); color: #ffffff; }
+    .brand-mark { width: 52px; height: 52px; margin: 0 auto 8px auto; border-radius: 16px; border: 1px solid rgba(255,255,255,0.35); background: #ffffff; display: flex; align-items: center; justify-content: center; overflow: hidden; box-shadow: 0 10px 30px rgba(15, 23, 42, 0.16); color: ${accentColor}; font-weight: 800; font-size: 20px; }
+    .brand-mark img { width: 78%; height: 78%; object-fit: contain; display: block; }
+    .restaurant-name { font-size: 15px; font-weight: 800; margin-bottom: 2px; }
+    .address { font-size: 10px; color: rgba(255,255,255,0.82); }
+    .compliance { font-size: 10px; font-weight: 700; margin-top: 6px; border: 1px solid rgba(255,255,255,0.3); display: inline-block; padding: 3px 8px; border-radius: 999px; background: rgba(255,255,255,0.12); }
+    .content { padding: 0 12px 12px 12px; }
+    .invoice-meta { margin: 8px 0; border-bottom: 1px dashed #cbd5e1; padding-bottom: 8px; }
     .meta-row { display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 2px; }
-    .order-type { display: inline-block; padding: 2px 8px; background: #000; color: #fff; font-size: 11px; font-weight: bold; margin: 4px 0; }
+    .order-type { display: inline-block; padding: 3px 10px; background: ${accentColor}; color: #fff; font-size: 11px; font-weight: 700; margin: 4px 0; border-radius: 999px; }
     .items-table { width: 100%; margin: 8px 0; }
     .item-row { display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 4px; }
     .item-name { flex: 1; }
     .item-qty { width: 20px; text-align: center; }
     .item-price { text-align: right; }
-    .divider { border-top: 1px dashed #000; margin: 8px 0; }
+    .divider { border-top: 1px dashed #cbd5e1; margin: 8px 0; }
     .totals { }
     .total-row { display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 3px; }
-    .total-row.grand { font-size: 14px; font-weight: bold; border-top: 2px solid #000; padding-top: 4px; margin-top: 4px; }
-    .qr-section { text-align: center; margin: 12px 0; border-top: 1px dashed #000; padding-top: 8px; }
-    .qr-section img { width: 80px; height: 80px; }
+    .total-row.grand { font-size: 14px; font-weight: 800; border-top: 2px solid #0f172a; padding-top: 6px; margin-top: 6px; }
+    .qr-section { text-align: center; margin: 12px 0; border-top: 1px dashed #cbd5e1; padding-top: 10px; }
+    .qr-badge { width: 110px; height: 110px; padding: 10px; margin: 0 auto; border-radius: 22px; border: 1px solid #e2e8f0; background: #ffffff; box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08); }
+    .qr-section img { width: 100%; height: 100%; display: block; }
     .qr-label { font-size: 9px; margin-top: 4px; }
-    .footer { text-align: center; border-top: 2px dashed #000; padding-top: 8px; margin-top: 8px; }
+    .footer { text-align: center; border-top: 2px dashed #cbd5e1; padding-top: 8px; margin-top: 8px; }
     .footer-text { font-size: 10px; margin-bottom: 2px; }
-    .customer-section { margin: 6px 0; padding: 6px; border: 1px solid #000; background: #f9f9f9; }
+    .customer-section { margin: 6px 0; padding: 8px; border: 1px solid #e2e8f0; border-radius: 12px; background: #f8fafc; }
     @media print {
       body { width: 80mm; }
       @page { size: 80mm auto; margin: 0; }
@@ -68,71 +95,77 @@ export function printCustomerInvoice(order: Order, tenant: Tenant) {
   </style>
 </head>
 <body>
-  <div class="header">
-    ${getPrintableBrandMarkup(tenant)}
-    <div class="restaurant-name">${countryFlag} ${tenant.name}</div>
-    <div class="address">${tenant.address}</div>
-    <div class="address">Tel: ${tenant.phone}</div>
-    ${tenant.vatNumber ? `<div class="address">VAT No: ${tenant.vatNumber}</div>` : ''}
-    <div><span class="compliance">${config.complianceLabel}</span></div>
-  </div>
-
-  <div class="invoice-meta">
-    <div class="meta-row"><span>Invoice:</span><span><b>${order.invoiceNumber}</b></span></div>
-    <div class="meta-row"><span>Date:</span><span>${new Date(order.createdAt).toLocaleString()}</span></div>
-    ${order.tableNumber ? `<div class="meta-row"><span>Table:</span><span><b>${order.tableNumber}</b></span></div>` : ''}
-    <div class="meta-row"><span>Type:</span><span><span class="order-type">${orderTypeLabel}</span></span></div>
-    ${order.customerName ? `<div class="customer-section"><b>Customer:</b> ${order.customerName}${order.customerPhone ? `<br>📞 ${order.customerPhone}` : ''}</div>` : ''}
-    ${order.notes ? `<div class="meta-row"><span>Notes:</span><span>${order.notes}</span></div>` : ''}
-  </div>
-
-  <div class="divider"></div>
-  <div style="font-size:10px; font-weight:bold; margin-bottom:4px; display:flex; justify-content:space-between;">
-    <span>ITEM</span><span>QTY</span><span>TOTAL</span>
-  </div>
-  <div class="divider"></div>
-
-  <div class="items-table">
-    ${order.items.map(item => `
-    <div class="item-row">
-      <span class="item-name">${item.menuItem.name}</span>
-      <span class="item-qty">${item.quantity}</span>
-      <span class="item-price">${taxEngine.formatCurrency(item.unitPrice * item.quantity)}</span>
+  <div class="invoice-card">
+    <div class="header">
+      ${getPrintableBrandMarkup(tenant)}
+      <div class="restaurant-name">${countryFlag} ${tenant.name}</div>
+      <div class="address">${tenant.address}</div>
+      <div class="address">Tel: ${tenant.phone}</div>
+      ${tenant.vatNumber ? `<div class="address">VAT No: ${tenant.vatNumber}</div>` : ''}
+      ${(tenant.countryCode !== 'KSA' || isTenantInvoiceQrEnabled(tenant.id, tenant.countryCode)) ? `<div><span class="compliance">${config.complianceLabel}</span></div>` : ''}
     </div>
-    <div style="font-size:9px; color:#555; padding-left:8px; margin-bottom:2px;">${taxEngine.formatCurrency(item.unitPrice)} each</div>
-    `).join('')}
-  </div>
 
-  <div class="divider"></div>
+    <div class="content">
+      <div class="invoice-meta">
+        <div class="meta-row"><span>Invoice:</span><span><b>${order.invoiceNumber}</b></span></div>
+        <div class="meta-row"><span>Date:</span><span>${new Date(order.createdAt).toLocaleString()}</span></div>
+        ${order.tableNumber ? `<div class="meta-row"><span>Table:</span><span><b>${order.tableNumber}</b></span></div>` : ''}
+        <div class="meta-row"><span>Type:</span><span><span class="order-type">${orderTypeLabel}</span></span></div>
+        ${order.customerName ? `<div class="customer-section"><b>Customer:</b> ${order.customerName}${order.customerPhone ? `<br>📞 ${order.customerPhone}` : ''}</div>` : ''}
+        ${order.notes ? `<div class="meta-row"><span>Notes:</span><span>${order.notes}</span></div>` : ''}
+      </div>
 
-  <div class="totals">
-    <div class="total-row">
-      <span>Subtotal</span>
-      <span>${taxEngine.formatCurrency(order.subtotal)}</span>
+      <div class="divider"></div>
+      <div style="font-size:10px; font-weight:700; margin-bottom:4px; display:flex; justify-content:space-between; color:#475569;">
+        <span>ITEM</span><span>QTY</span><span>TOTAL</span>
+      </div>
+      <div class="divider"></div>
+
+      <div class="items-table">
+        ${order.items.map(item => `
+        <div class="item-row">
+          <span class="item-name">${item.menuItem.name}</span>
+          <span class="item-qty">${item.quantity}</span>
+          <span class="item-price">${taxEngine.formatCurrency(item.unitPrice * item.quantity)}</span>
+        </div>
+        <div style="font-size:9px; color:#64748b; padding-left:8px; margin-bottom:2px;">${taxEngine.formatCurrency(item.unitPrice)} each</div>
+        `).join('')}
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="totals">
+        <div class="total-row">
+          <span>Subtotal</span>
+          <span>${taxEngine.formatCurrency(order.subtotal)}</span>
+        </div>
+        <div class="total-row">
+          <span>${taxEngine.getVatLabel()}</span>
+          <span>${taxEngine.formatCurrency(order.vatAmount)}</span>
+        </div>
+        ${order.isPaid ? `<div class="total-row" style="color:#16a34a;"><span>Payment (${order.paymentMethod || 'cash'})</span><span>✓ PAID</span></div>` : ''}
+        <div class="total-row grand">
+          <span>TOTAL</span>
+          <span>${taxEngine.formatCurrency(order.total)}</span>
+        </div>
+      </div>
+
+      ${zatcaQrDataUrl ? `
+      <div class="qr-section">
+        <div style="font-size:9px; font-weight:700; margin-bottom:6px; color:#475569;">ZATCA QR Code</div>
+        <div class="qr-badge">
+          <img src="${zatcaQrDataUrl}" alt="ZATCA QR" />
+        </div>
+        <div class="qr-label">Scan to verify invoice</div>
+      </div>
+      ` : ''}
+
+      <div class="footer">
+        <div class="footer-text">${tenant.invoiceFooter || 'Thank you for your visit!'}</div>
+        <div class="footer-text" style="margin-top:4px; font-size:9px;">Powered by Buysial ERP</div>
+        <div class="footer-text" style="font-size:9px;">${new Date().toLocaleString()}</div>
+      </div>
     </div>
-    <div class="total-row">
-      <span>${taxEngine.getVatLabel()}</span>
-      <span>${taxEngine.formatCurrency(order.vatAmount)}</span>
-    </div>
-    ${order.isPaid ? `<div class="total-row" style="color:#16a34a;"><span>Payment (${order.paymentMethod || 'cash'})</span><span>✓ PAID</span></div>` : ''}
-    <div class="total-row grand">
-      <span>TOTAL</span>
-      <span>${taxEngine.formatCurrency(order.total)}</span>
-    </div>
-  </div>
-
-  ${tenant.countryCode === 'KSA' && zatcaQR ? `
-  <div class="qr-section">
-    <div style="font-size:9px; font-weight:bold; margin-bottom:4px;">ZATCA QR Code</div>
-    <img src="https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=${encodeURIComponent(zatcaQR)}" alt="ZATCA QR" />
-    <div class="qr-label">Scan to verify invoice</div>
-  </div>
-  ` : ''}
-
-  <div class="footer">
-    <div class="footer-text">${tenant.invoiceFooter || 'Thank you for your visit!'}</div>
-    <div class="footer-text" style="margin-top:4px; font-size:9px;">Powered by Buysial ERP</div>
-    <div class="footer-text" style="font-size:9px;">${new Date().toLocaleString()}</div>
   </div>
 </body>
 </html>`

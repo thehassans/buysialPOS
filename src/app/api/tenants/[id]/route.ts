@@ -18,6 +18,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       where: { id: params.id },
       data: {
         ...rest,
+        secondaryColor: rest.secondaryColor === undefined ? undefined : rest.secondaryColor || null,
         validUntil: rest.validUntil ? new Date(rest.validUntil) : rest.validUntil === null ? null : undefined,
       },
     })
