@@ -18,7 +18,7 @@ export default function KitchenDisplay() {
   }, [])
 
   useEffect(() => {
-    if (!currentTenant || !shouldAutoPrintKitchen()) return
+    if (!currentTenant || !shouldAutoPrintKitchen(currentTenant)) return
     const printableOrders = orders
       .filter(order => order.tenantId === currentTenant.id && !order.isPaid && ['pending', 'preparing'].includes(order.status))
       .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())

@@ -2,12 +2,13 @@
 
 import { Order, Tenant } from '@/lib/types'
 import { TaxEngine, generateZATCAQRData, COUNTRY_CONFIGS } from '@/lib/country-config'
-import { formatDate } from '@/lib/utils'
+import { printHtmlDocument } from '@/lib/printer-runtime'
 
-interface InvoicePrintProps {
-  order: Order
-  tenant: Tenant
-  type?: 'customer' | 'kitchen'
+function getPrintableBrandMarkup(tenant: Tenant) {
+  if (tenant.logo) {
+    return `<img src="${tenant.logo}" alt="${tenant.name}" style="width:48px;height:48px;object-fit:cover;border-radius:12px;border:1px solid #d1d5db;margin:0 auto 6px auto;display:block;" />`
+  }
+  return `<div class="logo">🍽️</div>`
 }
 
 export function printCustomerInvoice(order: Order, tenant: Tenant) {
@@ -68,7 +69,7 @@ export function printCustomerInvoice(order: Order, tenant: Tenant) {
 </head>
 <body>
   <div class="header">
-    <div class="logo">🍽️</div>
+    ${getPrintableBrandMarkup(tenant)}
     <div class="restaurant-name">${countryFlag} ${tenant.name}</div>
     <div class="address">${tenant.address}</div>
     <div class="address">Tel: ${tenant.phone}</div>
@@ -136,15 +137,7 @@ export function printCustomerInvoice(order: Order, tenant: Tenant) {
 </body>
 </html>`
 
-  const printWindow = window.open('', '_blank', 'width=400,height=600')
-  if (!printWindow) return
-  printWindow.document.write(html)
-  printWindow.document.close()
-  printWindow.focus()
-  setTimeout(() => {
-    printWindow.print()
-    printWindow.close()
-  }, 500)
+  void printHtmlDocument(html, `Invoice ${order.invoiceNumber}`, 'cashier', tenant)
 }
 
 export function printKitchenTicket(order: Order, tenant: Tenant) {
@@ -176,6 +169,7 @@ export function printKitchenTicket(order: Order, tenant: Tenant) {
 </head>
 <body>
   <div class="header">
+    ${tenant.logo ? `<img src="${tenant.logo}" alt="${tenant.name}" style="width:42px;height:42px;object-fit:cover;border-radius:10px;border:1px solid #d1d5db;margin:0 auto 6px auto;display:block;" />` : ''}
     <div class="kitchen-title">🍳 KITCHEN</div>
     <div>${tenant.name}</div>
     <div class="order-badge">${order.invoiceNumber}</div>
@@ -203,13 +197,5 @@ export function printKitchenTicket(order: Order, tenant: Tenant) {
 </body>
 </html>`
 
-  const printWindow = window.open('', '_blank', 'width=400,height=500')
-  if (!printWindow) return
-  printWindow.document.write(html)
-  printWindow.document.close()
-  printWindow.focus()
-  setTimeout(() => {
-    printWindow.print()
-    printWindow.close()
-  }, 400)
+  void printHtmlDocument(html, `Kitchen Ticket ${order.invoiceNumber}`, 'kitchen', tenant)
 }

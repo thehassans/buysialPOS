@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 import { printCustomerInvoice } from './InvoicePrint'
 import { buildPrintFingerprint, hasPrintedJob, markPrintedJob, shouldAutoPrintCashier } from '@/lib/device-print'
+import TenantBrandMark from '@/components/shared/TenantBrandMark'
 
 export default function CashierInterface() {
   const { currentTenant, orders, updateOrder, setActiveView, setEditingOrder } = useAppStore()
@@ -20,7 +21,7 @@ export default function CashierInterface() {
   const [showInvoice, setShowInvoice] = useState(false)
 
   useEffect(() => {
-    if (!currentTenant || !shouldAutoPrintCashier()) return
+    if (!currentTenant || !shouldAutoPrintCashier(currentTenant)) return
     const printableOrders = orders
       .filter(order => order.tenantId === currentTenant.id && !order.isPaid && order.status !== 'cancelled')
       .sort((a, b) => new Date(a.updatedAt).getTime() - new Date(b.updatedAt).getTime())
@@ -211,9 +212,12 @@ export default function CashierInterface() {
               <div className="flex-1 overflow-y-auto p-6 scrollbar-thin">
                 <div className="max-w-sm mx-auto bg-white rounded-2xl shadow-sm p-6 border border-emerald-200 space-y-4">
                   <div className="text-center">
-                    <div className="w-12 h-12 rounded-full bg-emerald-100 border border-emerald-200 flex items-center justify-center text-gray-900 font-bold text-lg mx-auto mb-2">
-                      {currentTenant.name.charAt(0)}
-                    </div>
+                    <TenantBrandMark
+                      logo={currentTenant.logo}
+                      name={currentTenant.name}
+                      className="w-12 h-12 rounded-full mx-auto mb-2"
+                      initialsClassName="text-lg"
+                    />
                     <h2 className="text-gray-900 font-bold text-lg">{currentTenant.name}</h2>
                     <p className="text-emerald-600 text-xs">{currentTenant.address}</p>
                     <p className="text-emerald-600 text-xs">{currentTenant.phone}</p>

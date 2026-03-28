@@ -2,6 +2,11 @@ import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { MOCK_CATEGORIES } from '@/lib/mock-data'
 
+function formatCategory(category: any) {
+  const { mongoId, ...rest } = category
+  return rest
+}
+
 function normalizeCategoryPayload(payload: any) {
   return {
     id: payload.id,
@@ -23,7 +28,7 @@ export async function GET(req: Request) {
       where: tenantId ? { tenantId } : undefined,
       orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
     })
-    return NextResponse.json(categories)
+    return NextResponse.json(categories.map(formatCategory))
   } catch (e) {
     console.error('GET /api/categories error:', e)
     return NextResponse.json(
@@ -42,7 +47,7 @@ export async function POST(req: Request) {
       create: payload,
       update: payload,
     })
-    return NextResponse.json(saved)
+    return NextResponse.json(formatCategory(saved))
   } catch (e) {
     console.error('POST /api/categories error:', e)
     return NextResponse.json({ error: 'Failed to save category' }, { status: 500 })

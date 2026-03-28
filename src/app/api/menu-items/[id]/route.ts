@@ -1,11 +1,16 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 
+function formatMenuItem(item: any) {
+  const { mongoId, ...rest } = item
+  return rest
+}
+
 export async function PATCH(req: Request, { params }: { params: { id: string } }) {
   try {
     const updates = await req.json()
     const saved = await db.menuItem.update({ where: { id: params.id }, data: updates })
-    return NextResponse.json(saved)
+    return NextResponse.json(formatMenuItem(saved))
   } catch (e) {
     console.error('PATCH /api/menu-items/[id] error:', e)
     return NextResponse.json({ error: 'Failed to update menu item' }, { status: 500 })

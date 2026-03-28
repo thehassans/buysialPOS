@@ -8,11 +8,9 @@ if not exist "node_modules\" (
     npm install
 )
 
-REM Initialize local database if it doesn't exist
-if not exist "prisma\pos.db" (
-    echo Formatting local offline database...
-    npx prisma db push
-)
+REM Sync MongoDB schema
+echo Syncing MongoDB schema...
+npx prisma db push
 
 echo.
 echo Launching POS Desktop Interface...

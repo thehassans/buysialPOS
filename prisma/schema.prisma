@@ -3,12 +3,13 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "mongodb"
   url      = env("DATABASE_URL")
 }
 
 model Tenant {
-  id               String   @id
+  mongoId          String   @id @default(auto()) @map("_id") @db.ObjectId
+  id               String   @unique
   name             String
   slug             String   @unique
   logo             String?
@@ -26,10 +27,19 @@ model Tenant {
   invoiceFooter    String?
   primaryColor     String?
   adminPassword    String?
+  kitchenPrinterName       String?
+  kitchenPrinterConnection String?
+  kitchenPrinterEnabled    Boolean? @default(false)
+  kitchenAutoPrint         Boolean? @default(false)
+  cashierPrinterName       String?
+  cashierPrinterConnection String?
+  cashierPrinterEnabled    Boolean? @default(false)
+  cashierAutoPrint         Boolean? @default(false)
 }
 
 model Category {
-  id        String  @id
+  mongoId   String  @id @default(auto()) @map("_id") @db.ObjectId
+  id        String  @unique
   tenantId  String
   name      String
   nameAr    String?
@@ -39,7 +49,8 @@ model Category {
 }
 
 model Order {
-  id            String   @id
+  mongoId        String   @id @default(auto()) @map("_id") @db.ObjectId
+  id            String   @unique
   tenantId      String
   tableNumber   Int?
   waiterId      String?
@@ -63,7 +74,8 @@ model Order {
 }
 
 model MenuItem {
-  id              String  @id
+  mongoId         String  @id @default(auto()) @map("_id") @db.ObjectId
+  id              String  @unique
   tenantId        String
   categoryId      String
   name            String
@@ -82,7 +94,8 @@ model MenuItem {
 }
 
 model User {
-  id         String   @id
+  mongoId    String   @id @default(auto()) @map("_id") @db.ObjectId
+  id         String   @unique
   tenantId   String
   name       String
   email      String
@@ -95,7 +108,8 @@ model User {
 }
 
 model SyncQueue {
-  id        String   @id @default(uuid())
+  mongoId   String   @id @default(auto()) @map("_id") @db.ObjectId
+  id        String   @unique @default(uuid())
   entity    String   // e.g., "Order"
   entityId  String   // e.g., the Order ID
   operation String   // e.g., "CREATE", "UPDATE", "DELETE"

@@ -7,6 +7,8 @@ export type MenuPortion = 'full' | 'half'
 export type Language = 'en' | 'ar'
 export type Theme = 'dark' | 'light'
 export type SubscriptionPlan = 'starter' | 'professional' | 'enterprise'
+export type DevicePrintRole = 'waiter' | 'kitchen' | 'cashier' | 'admin'
+export type PrinterConnectionType = 'browser' | 'usb' | 'network' | 'bluetooth'
 
 export interface CountryConfig {
   code: CountryCode
@@ -40,6 +42,14 @@ export interface Tenant {
   invoiceFooter?: string
   primaryColor?: string
   adminPassword?: string
+  kitchenPrinterName?: string
+  kitchenPrinterConnection?: PrinterConnectionType
+  kitchenPrinterEnabled?: boolean
+  kitchenAutoPrint?: boolean
+  cashierPrinterName?: string
+  cashierPrinterConnection?: PrinterConnectionType
+  cashierPrinterEnabled?: boolean
+  cashierAutoPrint?: boolean
 }
 
 export interface User {

@@ -101,11 +101,23 @@ export const useAppStore = create<AppState>()(
       logout: () => set({ currentUser: null, currentTenant: null }),
 
       addTenant: (tenant) => {
-        set((state) => ({ tenants: [...state.tenants.filter(existing => existing.id !== tenant.id), tenant] }))
+        set((state) => ({
+          tenants: [...state.tenants.filter(existing => existing.id !== tenant.id), tenant],
+          currentTenant: state.currentTenant?.id === tenant.id ? tenant : state.currentTenant,
+        }))
         apiSync('/api/tenants', 'POST', tenant)
       },
       updateTenant: (id, updates) => {
-        set((state) => ({ tenants: state.tenants.map(t => t.id === id ? { ...t, ...updates } : t) }))
+        set((state) => {
+          const nextTenants = state.tenants.map(t => t.id === id ? { ...t, ...updates } : t)
+          const nextCurrentTenant = state.currentTenant?.id === id
+            ? { ...state.currentTenant, ...updates }
+            : state.currentTenant
+          return {
+            tenants: nextTenants,
+            currentTenant: nextCurrentTenant,
+          }
+        })
         apiSync(`/api/tenants/${id}`, 'PATCH', updates)
       },
       addCategory: (category) => {

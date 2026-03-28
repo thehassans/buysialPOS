@@ -5,6 +5,7 @@ import { useAppStore } from '@/store/app-store'
 import { cn } from '@/lib/utils'
 import { Plus, Search, CheckCircle, XCircle, Crown, X, Edit2, Copy, KeyRound, LogIn } from 'lucide-react'
 import { Tenant, User, CountryCode, Currency, SubscriptionPlan } from '@/lib/types'
+import TenantBrandMark from '@/components/shared/TenantBrandMark'
 
 const EMPTY_FORM = {
   name: '', slug: '', email: '', phone: '', address: '',
@@ -209,9 +210,7 @@ export default function TenantsModule() {
                 <tr key={tenant.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500 to-emerald-700 flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
-                        {tenant.name.charAt(0)}
-                      </div>
+                      <TenantBrandMark logo={tenant.logo} name={tenant.name} className="w-8 h-8 rounded-lg flex-shrink-0" initialsClassName="text-xs text-white" />
                       <div>
                         <div className="text-gray-900 text-sm font-medium">{tenant.name}</div>
                         <div className="text-slate-500 text-xs">{tenant.email}</div>
@@ -283,9 +282,7 @@ export default function TenantsModule() {
           <div className="bg-white rounded-3xl shadow-xl p-8 w-full max-w-lg relative z-10 border border-gray-200 space-y-5">
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-4">
-                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-700 flex items-center justify-center text-white font-black text-xl">
-                  {viewTenant.name.charAt(0)}
-                </div>
+                <TenantBrandMark logo={viewTenant.logo} name={viewTenant.name} className="w-14 h-14 rounded-2xl" initialsClassName="text-xl text-white" />
                 <div>
                   <h2 className="text-xl font-bold text-gray-900">{viewTenant.name}</h2>
                   <p className="text-slate-500 text-sm">

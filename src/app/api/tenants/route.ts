@@ -3,10 +3,11 @@ import { db } from '@/lib/db'
 import { MOCK_TENANTS } from '@/lib/mock-data'
 
 function formatTenant(tenant: any) {
+  const { mongoId, ...rest } = tenant
   return {
-    ...tenant,
-    createdAt: new Date(tenant.createdAt),
-    validUntil: tenant.validUntil ? new Date(tenant.validUntil) : undefined,
+    ...rest,
+    createdAt: new Date(rest.createdAt),
+    validUntil: rest.validUntil ? new Date(rest.validUntil) : undefined,
   }
 }
 
@@ -30,6 +31,14 @@ function normalizeTenantPayload(payload: any) {
     invoiceFooter: payload.invoiceFooter || null,
     primaryColor: payload.primaryColor || null,
     adminPassword: payload.adminPassword || null,
+    kitchenPrinterName: payload.kitchenPrinterName || null,
+    kitchenPrinterConnection: payload.kitchenPrinterConnection || null,
+    kitchenPrinterEnabled: payload.kitchenPrinterEnabled ?? false,
+    kitchenAutoPrint: payload.kitchenAutoPrint ?? false,
+    cashierPrinterName: payload.cashierPrinterName || null,
+    cashierPrinterConnection: payload.cashierPrinterConnection || null,
+    cashierPrinterEnabled: payload.cashierPrinterEnabled ?? false,
+    cashierAutoPrint: payload.cashierAutoPrint ?? false,
   }
 }
 

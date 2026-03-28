@@ -7,6 +7,7 @@ import { ROLE_LABELS, ROLE_COLORS, cn } from '@/lib/utils'
 import { useRouter } from 'next/navigation'
 import { getCountryConfig } from '@/lib/country-config'
 import { processQueue, getPendingCount } from '@/lib/sync-queue'
+import TenantBrandMark from '@/components/shared/TenantBrandMark'
 
 export default function TopBar() {
   const { currentUser, currentTenant, language, setLanguage, activeView, logout, toggleSidebar } = useAppStore()
@@ -85,6 +86,12 @@ export default function TopBar() {
         <button onClick={() => router.push('/')} className="hidden md:block text-slate-400 hover:text-emerald-600 transition-colors">
           {isAr ? <ArrowRight className="w-4 h-4" /> : <ArrowLeft className="w-4 h-4" />}
         </button>
+        <TenantBrandMark
+          logo={currentTenant.logo}
+          name={currentTenant.name}
+          className="hidden sm:flex w-9 h-9 rounded-xl flex-shrink-0"
+          initialsClassName="text-xs"
+        />
         <div className="min-w-0">
           <h1 className="text-gray-900 font-bold text-sm md:text-base truncate max-w-[120px] sm:max-w-xs">{VIEW_LABELS[activeView] || 'Dashboard'}</h1>
           <div className="flex items-center gap-2 text-xs text-slate-500">

@@ -12,7 +12,7 @@ import {
   CheckCircle, Search, UtensilsCrossed, ShoppingBag, User, Phone, Printer, Receipt, XCircle
 } from 'lucide-react'
 import { useEffect } from 'react'
-import { getDevicePrintRole } from '@/lib/device-print'
+import { getDevicePrintRole, shouldAutoPrintKitchen } from '@/lib/device-print'
 
 export default function POSInterface() {
   const { currentTenant, currentUser, addOrder, updateOrder, categories, menuItems, tables, reserveTable, editingOrder, setEditingOrder } = useAppStore()
@@ -56,7 +56,7 @@ export default function POSInterface() {
         isActive: true,
       })),
   ].sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name))
-  const deviceRole = getDevicePrintRole()
+  const deviceRole = getDevicePrintRole(currentTenant.id)
 
   const filteredItems = menuItems.filter(item => {
     if (item.tenantId !== currentTenant.id) return false
@@ -106,7 +106,7 @@ export default function POSInterface() {
         customerPhone: customerPhone || undefined,
       })
       setLastOrder({ ...editingOrder, items: cart, total, subtotal, vatAmount })
-      if (autoPrintKitchen && deviceRole !== 'waiter') {
+      if (autoPrintKitchen && shouldAutoPrintKitchen(currentTenant)) {
         printKitchenTicket({ ...editingOrder, items: cart } as Order, currentTenant)
       }
       setOrderSent(true)
@@ -148,9 +148,8 @@ export default function POSInterface() {
       reserveTable(selectedTable.number, order.id)
     }
     setLastOrder(order)
-    if (autoPrintKitchen && deviceRole !== 'waiter') {
+    if (autoPrintKitchen && shouldAutoPrintKitchen(currentTenant)) {
       printKitchenTicket(order, currentTenant)
-      setTimeout(() => printCustomerInvoice(order, currentTenant), 600)
     }
     setOrderSent(true)
     setTimeout(() => {

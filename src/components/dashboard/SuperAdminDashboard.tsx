@@ -13,6 +13,7 @@ import {
 } from 'recharts'
 import { MOCK_TENANTS, REVENUE_DATA, SUBSCRIPTION_GROWTH, SUBSCRIPTION_PLANS } from '@/lib/mock-data'
 import { cn, getCurrencySymbol } from '@/lib/utils'
+import TenantBrandMark from '@/components/shared/TenantBrandMark'
 
 const TENANT_MAP_POSITIONS = [
   { id: 't1', x: 48, y: 42, city: 'Riyadh' },
@@ -197,9 +198,7 @@ export default function SuperAdminDashboard() {
           <div className="space-y-3">
             {allTenants.map(tenant => (
               <div key={tenant.id} className="flex items-center gap-3 p-3 rounded-xl bg-gray-50 hover:bg-emerald-50 transition-all cursor-pointer">
-                <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-emerald-500 to-emerald-700 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
-                  {tenant.name.charAt(0)}
-                </div>
+                <TenantBrandMark logo={tenant.logo} name={tenant.name} className="w-9 h-9 rounded-lg flex-shrink-0" initialsClassName="text-sm text-white" />
                 <div className="flex-1 min-w-0">
                   <div className="text-gray-900 text-sm font-medium truncate">{tenant.name}</div>
                   <div className="text-slate-500 text-xs flex items-center gap-1">

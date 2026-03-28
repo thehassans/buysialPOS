@@ -1,7 +1,6 @@
 'use client'
 
 import { useAppStore } from '@/store/app-store'
-import Image from 'next/image'
 import {
   LayoutDashboard, ShoppingCart, ChefHat, Package, Users,
   QrCode, Settings, BarChart3, Building2, LogOut, ChevronLeft,
@@ -11,6 +10,7 @@ import { cn } from '@/lib/utils'
 import { ROLE_LABELS } from '@/lib/utils'
 import { getInitials } from '@/lib/utils'
 import { useRouter } from 'next/navigation'
+import TenantBrandMark from '@/components/shared/TenantBrandMark'
 
 const NAV_ITEMS = {
   super_admin: [
@@ -88,7 +88,12 @@ export default function Sidebar() {
       )}>
         {/* Logo */}
         <div className="flex items-center gap-3 p-4 border-b border-gray-100 h-16">
-        <Image src="/logo.png" alt="BuysialPOS" width={32} height={32} className="rounded-lg object-contain flex-shrink-0" />
+        <TenantBrandMark
+          logo={currentTenant?.logo}
+          name={currentTenant?.name || 'Buysial ERP'}
+          className="w-8 h-8 rounded-lg flex-shrink-0"
+          initialsClassName="text-[10px]"
+        />
         {sidebarOpen && (
           <div className="overflow-hidden">
             <div className="font-bold text-gray-900 text-sm truncate">Buysial ERP</div>

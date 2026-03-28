@@ -4,11 +4,12 @@ import { Order } from '@/lib/types'
 import { enqueueSyncOperation } from '@/lib/syncService'
 
 function dbToOrder(o: any): Order {
+  const { mongoId, itemsJson, ...rest } = o
   return {
-    ...o,
-    items: JSON.parse(o.itemsJson || '[]'),
-    createdAt: new Date(o.createdAt),
-    updatedAt: new Date(o.updatedAt),
+    ...rest,
+    items: JSON.parse(itemsJson || '[]'),
+    createdAt: new Date(rest.createdAt),
+    updatedAt: new Date(rest.updatedAt),
   }
 }
 

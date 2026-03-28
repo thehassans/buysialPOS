@@ -2,10 +2,11 @@ import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 
 function formatTenant(tenant: any) {
+  const { mongoId, ...rest } = tenant
   return {
-    ...tenant,
-    createdAt: new Date(tenant.createdAt),
-    validUntil: tenant.validUntil ? new Date(tenant.validUntil) : undefined,
+    ...rest,
+    createdAt: new Date(rest.createdAt),
+    validUntil: rest.validUntil ? new Date(rest.validUntil) : undefined,
   }
 }
 

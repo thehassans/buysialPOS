@@ -1,21 +1,49 @@
-export type DevicePrintRole = 'waiter' | 'kitchen' | 'cashier' | 'admin'
+import { DevicePrintRole, Tenant } from './types'
 
 type PrintChannel = 'kitchen' | 'cashier'
 
 const PRINT_STORAGE_PREFIX = 'buysial-print'
+const DEVICE_ROLE_STORAGE_PREFIX = 'buysial-device-role'
 
-export function getDevicePrintRole(): DevicePrintRole {
+function getDefaultRole(): DevicePrintRole {
   const rawRole = (process.env.NEXT_PUBLIC_DEVICE_ROLE || 'waiter').trim().toLowerCase()
   if (rawRole === 'kitchen' || rawRole === 'cashier' || rawRole === 'admin') return rawRole
   return 'waiter'
 }
 
-export function shouldAutoPrintKitchen() {
-  return getDevicePrintRole() === 'kitchen'
+function getDeviceRoleKey(tenantId?: string) {
+  return `${DEVICE_ROLE_STORAGE_PREFIX}:${tenantId || 'global'}`
 }
 
-export function shouldAutoPrintCashier() {
-  return getDevicePrintRole() === 'cashier'
+export function getDevicePrintRole(tenantId?: string): DevicePrintRole {
+  if (typeof window !== 'undefined') {
+    const tenantRole = window.localStorage.getItem(getDeviceRoleKey(tenantId))
+    const globalRole = window.localStorage.getItem(getDeviceRoleKey())
+    const resolvedRole = (tenantRole || globalRole || getDefaultRole()).trim().toLowerCase()
+    if (resolvedRole === 'kitchen' || resolvedRole === 'cashier' || resolvedRole === 'admin') return resolvedRole
+  }
+  return getDefaultRole()
+}
+
+export function setDevicePrintRole(role: DevicePrintRole, tenantId?: string) {
+  if (typeof window === 'undefined') return
+  window.localStorage.setItem(getDeviceRoleKey(tenantId), role)
+}
+
+export function getPrinterNameForChannel(channel: PrintChannel, tenant: Tenant) {
+  return channel === 'kitchen' ? tenant.kitchenPrinterName : tenant.cashierPrinterName
+}
+
+export function shouldAutoPrintKitchen(tenant?: Tenant) {
+  if (!tenant?.kitchenPrinterEnabled || !tenant.kitchenAutoPrint) return false
+  const role = getDevicePrintRole(tenant.id)
+  return role === 'kitchen' || role === 'admin'
+}
+
+export function shouldAutoPrintCashier(tenant?: Tenant) {
+  if (!tenant?.cashierPrinterEnabled || !tenant.cashierAutoPrint) return false
+  const role = getDevicePrintRole(tenant.id)
+  return role === 'cashier' || role === 'admin'
 }
 
 function getStorageKey(channel: PrintChannel) {

@@ -1,8 +1,45 @@
-const { app, BrowserWindow } = require('electron');
+const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
 const isDev = require('electron-is-dev');
 
 let mainWindow;
+
+async function printHtml({ html, title, printerName }) {
+  return new Promise((resolve) => {
+    const printWindow = new BrowserWindow({
+      show: false,
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true,
+      },
+    });
+
+    const closeWindow = () => {
+      if (!printWindow.isDestroyed()) printWindow.close();
+    };
+
+    printWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
+    printWindow.webContents.once('did-finish-load', () => {
+      printWindow.webContents.print(
+        {
+          silent: Boolean(printerName),
+          deviceName: printerName || undefined,
+          printBackground: true,
+          margins: { marginType: 'none' },
+        },
+        (success, failureReason) => {
+          resolve({ success, failureReason: failureReason || null });
+          setTimeout(closeWindow, 100);
+        }
+      );
+    });
+
+    printWindow.webContents.once('did-fail-load', (_, __, failureReason) => {
+      resolve({ success: false, failureReason });
+      setTimeout(closeWindow, 100);
+    });
+  });
+}
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -22,6 +59,22 @@ function createWindow() {
     mainWindow = null;
   });
 }
+
+ipcMain.handle('printer:list', async () => {
+  if (!mainWindow) return [];
+  try {
+    return await mainWindow.webContents.getPrintersAsync();
+  } catch {
+    return [];
+  }
+});
+
+ipcMain.handle('printer:print', async (_, payload) => {
+  if (!payload?.html || !payload?.title) {
+    return { success: false, failureReason: 'Missing print payload' };
+  }
+  return printHtml(payload);
+});
 
 app.on('ready', createWindow);
 

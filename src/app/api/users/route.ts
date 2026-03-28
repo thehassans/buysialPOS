@@ -3,9 +3,10 @@ import { db } from '@/lib/db'
 import { MOCK_USERS } from '@/lib/mock-data'
 
 function formatUser(user: any) {
+  const { mongoId, ...rest } = user
   return {
-    ...user,
-    createdAt: new Date(user.createdAt),
+    ...rest,
+    createdAt: new Date(rest.createdAt),
   }
 }
 

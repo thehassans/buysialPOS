@@ -1,10 +1,14 @@
 'use client'
 
-import { useState } from 'react'
+import { ChangeEvent, useEffect, useMemo, useRef, useState } from 'react'
 import { useAppStore } from '@/store/app-store'
 import { COUNTRY_CONFIGS } from '@/lib/country-config'
 import { cn } from '@/lib/utils'
-import { Settings, Save, Upload, Building2, Receipt, Globe, Shield, Check, ToggleLeft, ToggleRight, AlertCircle, QrCode, Calendar, FileText, BadgeCheck, Hash } from 'lucide-react'
+import { getDevicePrintRole, setDevicePrintRole } from '@/lib/device-print'
+import { listSystemPrinters } from '@/lib/printer-runtime'
+import { DevicePrintRole, PrinterConnectionType } from '@/lib/types'
+import TenantBrandMark from '@/components/shared/TenantBrandMark'
+import { Save, Upload, Building2, Receipt, Shield, Check, AlertCircle, QrCode, Calendar, FileText, BadgeCheck, Hash, Printer, ChefHat, CreditCard } from 'lucide-react'
 
 function Toggle({ enabled, onToggle, disabled }: { enabled: boolean; onToggle: () => void; disabled?: boolean }) {
   return (
@@ -47,23 +51,129 @@ const OTA_FEATURES = [
   { id: 'simplifiedInv', icon: Receipt,    label: 'Simplified Invoice',    labelAr: 'فاتورة مبسطة',            desc: 'For transactions under OMR 500',     descAr: 'للمعاملات أقل من 500 ريال عُماني' },
 ]
 
+const DEVICE_ROLE_OPTIONS: DevicePrintRole[] = ['waiter', 'kitchen', 'cashier', 'admin']
+const PRINTER_CONNECTION_OPTIONS: PrinterConnectionType[] = ['browser', 'usb', 'network', 'bluetooth']
+
 export default function SettingsModule() {
-  const { currentTenant } = useAppStore()
-  const [tab, setTab] = useState<'general' | 'tax' | 'invoice' | 'compliance'>('compliance')
+  const { currentTenant, updateTenant } = useAppStore()
+  const [tab, setTab] = useState<'general' | 'tax' | 'invoice' | 'compliance'>('general')
   const [saved, setSaved] = useState(false)
-  const [vatRate, setVatRate] = useState(((currentTenant?.vatRate || 0.15) * 100).toString())
-  const [invoiceFooter, setInvoiceFooter] = useState(currentTenant?.invoiceFooter || '')
-  const [restaurantName, setRestaurantName] = useState(currentTenant?.name || '')
+  const [vatRate, setVatRate] = useState('15')
+  const [invoiceFooter, setInvoiceFooter] = useState('')
+  const [restaurantName, setRestaurantName] = useState('')
+  const [restaurantEmail, setRestaurantEmail] = useState('')
+  const [restaurantPhone, setRestaurantPhone] = useState('')
+  const [restaurantAddress, setRestaurantAddress] = useState('')
+  const [vatNumber, setVatNumber] = useState('')
+  const [logo, setLogo] = useState<string | undefined>(undefined)
+  const [primaryColor, setPrimaryColor] = useState('#059669')
+  const [deviceRole, setLocalDeviceRole] = useState<DevicePrintRole>('waiter')
+  const [kitchenPrinterName, setKitchenPrinterName] = useState('')
+  const [kitchenPrinterConnection, setKitchenPrinterConnection] = useState<PrinterConnectionType>('browser')
+  const [kitchenPrinterEnabled, setKitchenPrinterEnabled] = useState(false)
+  const [kitchenAutoPrint, setKitchenAutoPrint] = useState(false)
+  const [cashierPrinterName, setCashierPrinterName] = useState('')
+  const [cashierPrinterConnection, setCashierPrinterConnection] = useState<PrinterConnectionType>('browser')
+  const [cashierPrinterEnabled, setCashierPrinterEnabled] = useState(false)
+  const [cashierAutoPrint, setCashierAutoPrint] = useState(false)
+  const [availablePrinters, setAvailablePrinters] = useState<Array<{ name: string; displayName?: string }>>([])
+  const [loadingPrinters, setLoadingPrinters] = useState(false)
   const [complianceActive, setComplianceActive] = useState(true)
+  const logoInputRef = useRef<HTMLInputElement>(null)
 
   const country = currentTenant?.countryCode || 'KSA'
   const features = country === 'KSA' ? ZATCA_FEATURES : country === 'UAE' ? FTA_FEATURES : OTA_FEATURES
   const defaultEnabled: Record<string, boolean> = Object.fromEntries(features.map(f => [f.id, true]))
   const [featureToggles, setFeatureToggles] = useState<Record<string, boolean>>(defaultEnabled)
 
+  useEffect(() => {
+    if (!currentTenant) return
+    setVatRate(((currentTenant.vatRate || 0.15) * 100).toString())
+    setInvoiceFooter(currentTenant.invoiceFooter || '')
+    setRestaurantName(currentTenant.name || '')
+    setRestaurantEmail(currentTenant.email || '')
+    setRestaurantPhone(currentTenant.phone || '')
+    setRestaurantAddress(currentTenant.address || '')
+    setVatNumber(currentTenant.vatNumber || '')
+    setLogo(currentTenant.logo)
+    setPrimaryColor(currentTenant.primaryColor || '#059669')
+    setKitchenPrinterName(currentTenant.kitchenPrinterName || '')
+    setKitchenPrinterConnection(currentTenant.kitchenPrinterConnection || 'browser')
+    setKitchenPrinterEnabled(Boolean(currentTenant.kitchenPrinterEnabled))
+    setKitchenAutoPrint(Boolean(currentTenant.kitchenAutoPrint))
+    setCashierPrinterName(currentTenant.cashierPrinterName || '')
+    setCashierPrinterConnection(currentTenant.cashierPrinterConnection || 'browser')
+    setCashierPrinterEnabled(Boolean(currentTenant.cashierPrinterEnabled))
+    setCashierAutoPrint(Boolean(currentTenant.cashierAutoPrint))
+    setLocalDeviceRole(getDevicePrintRole(currentTenant.id))
+  }, [currentTenant])
+
+  useEffect(() => {
+    let cancelled = false
+    const loadPrinters = async () => {
+      setLoadingPrinters(true)
+      try {
+        const printers = await listSystemPrinters()
+        if (!cancelled) {
+          setAvailablePrinters(printers.map(printer => ({
+            name: printer.name,
+            displayName: printer.displayName || printer.name,
+          })))
+        }
+      } finally {
+        if (!cancelled) {
+          setLoadingPrinters(false)
+        }
+      }
+    }
+    loadPrinters()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const hasDetectedPrinters = availablePrinters.length > 0
+  const printerChoices = useMemo(() => availablePrinters.map(printer => ({
+    value: printer.name,
+    label: printer.displayName || printer.name,
+  })), [availablePrinters])
+
   const handleSave = () => {
+    if (!currentTenant) return
+    updateTenant(currentTenant.id, {
+      name: restaurantName.trim() || currentTenant.name,
+      email: restaurantEmail.trim(),
+      phone: restaurantPhone.trim(),
+      address: restaurantAddress.trim(),
+      vatNumber: vatNumber.trim() || undefined,
+      vatRate: Math.max(0, Number(vatRate || 0)) / 100,
+      invoiceFooter: invoiceFooter.trim() || undefined,
+      logo,
+      primaryColor,
+      kitchenPrinterName: kitchenPrinterName.trim() || undefined,
+      kitchenPrinterConnection,
+      kitchenPrinterEnabled,
+      kitchenAutoPrint,
+      cashierPrinterName: cashierPrinterName.trim() || undefined,
+      cashierPrinterConnection,
+      cashierPrinterEnabled,
+      cashierAutoPrint,
+    })
+    setDevicePrintRole(deviceRole, currentTenant.id)
     setSaved(true)
     setTimeout(() => setSaved(false), 2000)
+  }
+
+  const handleLogoUpload = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        setLogo(reader.result)
+      }
+    }
+    reader.readAsDataURL(file)
   }
 
   if (!currentTenant) return null
@@ -111,15 +221,15 @@ export default function SettingsModule() {
             <h3 className="text-gray-900 font-semibold">Restaurant Details</h3>
             {[
               { label: 'Restaurant Name', value: restaurantName, onChange: setRestaurantName, type: 'text' },
-              { label: 'Email', value: currentTenant.email, onChange: () => {}, type: 'email' },
-              { label: 'Phone', value: currentTenant.phone, onChange: () => {}, type: 'tel' },
-              { label: 'Address', value: currentTenant.address, onChange: () => {}, type: 'text' },
+              { label: 'Email', value: restaurantEmail, onChange: setRestaurantEmail, type: 'email' },
+              { label: 'Phone', value: restaurantPhone, onChange: setRestaurantPhone, type: 'tel' },
+              { label: 'Address', value: restaurantAddress, onChange: setRestaurantAddress, type: 'text' },
             ].map(field => (
               <div key={field.label}>
                 <label className="text-emerald-500 text-xs font-medium block mb-1.5">{field.label}</label>
                 <input
                   type={field.type}
-                  defaultValue={field.value}
+                  value={field.value}
                   onChange={e => field.onChange(e.target.value)}
                   className="w-full px-3 py-2.5 bg-white rounded-xl shadow-sm text-sm text-gray-900 border border-gray-200 focus:outline-none focus:border-emerald-600"
                 />
@@ -132,10 +242,23 @@ export default function SettingsModule() {
             <div>
               <label className="text-emerald-500 text-xs font-medium block mb-1.5">Restaurant Logo</label>
               <div className="flex items-center gap-3">
-                <div className="w-16 h-16 rounded-xl bg-emerald-100 border border-emerald-200 flex items-center justify-center text-2xl font-bold text-gray-900">
-                  {currentTenant.name.charAt(0)}
-                </div>
-                <button className="flex items-center gap-2 px-4 py-2 bg-white rounded-xl shadow-sm text-sm text-emerald-600 border border-gray-200 hover:text-emerald-700 transition-all">
+                <TenantBrandMark
+                  logo={logo}
+                  name={restaurantName || currentTenant.name}
+                  className="w-16 h-16 rounded-xl"
+                  initialsClassName="text-2xl"
+                />
+                <input
+                  ref={logoInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleLogoUpload}
+                />
+                <button
+                  onClick={() => logoInputRef.current?.click()}
+                  className="flex items-center gap-2 px-4 py-2 bg-white rounded-xl shadow-sm text-sm text-emerald-600 border border-gray-200 hover:text-emerald-700 transition-all"
+                >
                   <Upload className="w-4 h-4" /> Upload Logo
                 </button>
               </div>
@@ -145,10 +268,11 @@ export default function SettingsModule() {
               <div className="flex items-center gap-3">
                 <input
                   type="color"
-                  defaultValue={currentTenant.primaryColor || '#059669'}
+                  value={primaryColor}
+                  onChange={e => setPrimaryColor(e.target.value)}
                   className="w-10 h-10 rounded-lg border border-gray-200 cursor-pointer"
                 />
-                <span className="text-emerald-600 text-sm font-mono">{currentTenant.primaryColor || '#059669'}</span>
+                <span className="text-emerald-600 text-sm font-mono">{primaryColor}</span>
               </div>
             </div>
             <div>
@@ -191,7 +315,8 @@ export default function SettingsModule() {
             <label className="text-emerald-500 text-xs font-medium block mb-1.5">VAT Registration Number</label>
             <input
               type="text"
-              defaultValue={currentTenant.vatNumber}
+              value={vatNumber}
+              onChange={e => setVatNumber(e.target.value)}
               className="w-full px-3 py-2.5 bg-white rounded-xl shadow-sm text-sm text-gray-900 border border-gray-200 focus:outline-none focus:border-emerald-600 font-mono"
               placeholder="Enter VAT number..."
             />
@@ -200,24 +325,132 @@ export default function SettingsModule() {
       )}
 
       {tab === 'invoice' && (
-        <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-200 space-y-5 max-w-lg">
-          <h3 className="text-gray-900 font-semibold">Invoice Settings</h3>
-          <div>
-            <label className="text-emerald-500 text-xs font-medium block mb-1.5">Invoice Footer Text</label>
-            <textarea
-              value={invoiceFooter}
-              onChange={e => setInvoiceFooter(e.target.value)}
-              rows={3}
-              placeholder="e.g. Thank you for dining with us!"
-              className="w-full px-3 py-2.5 bg-white rounded-xl shadow-sm text-sm text-gray-900 placeholder-emerald-700 border border-gray-200 focus:outline-none focus:border-emerald-600 resize-none"
-            />
+        <div className="grid xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-6">
+          <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-200 space-y-5">
+            <h3 className="text-gray-900 font-semibold">Invoice Settings</h3>
+            <div>
+              <label className="text-emerald-500 text-xs font-medium block mb-1.5">Invoice Footer Text</label>
+              <textarea
+                value={invoiceFooter}
+                onChange={e => setInvoiceFooter(e.target.value)}
+                rows={3}
+                placeholder="e.g. Thank you for dining with us!"
+                className="w-full px-3 py-2.5 bg-white rounded-xl shadow-sm text-sm text-gray-900 placeholder-emerald-700 border border-gray-200 focus:outline-none focus:border-emerald-600 resize-none"
+              />
+            </div>
+
+            <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <Printer className="w-4 h-4 text-emerald-600" />
+                <h4 className="text-sm font-semibold text-gray-900">This Device Role</h4>
+              </div>
+              <p className="text-xs text-slate-500">Set what this machine should do in your restaurant so auto-print only runs on the correct station.</p>
+              <select
+                value={deviceRole}
+                onChange={e => setLocalDeviceRole(e.target.value as DevicePrintRole)}
+                className="w-full px-3 py-2.5 bg-white rounded-xl border border-gray-200 text-sm text-gray-900 focus:outline-none focus:border-emerald-600"
+              >
+                {DEVICE_ROLE_OPTIONS.map(role => (
+                  <option key={role} value={role}>{role.charAt(0).toUpperCase() + role.slice(1)}</option>
+                ))}
+              </select>
+            </div>
+
+            {!hasDetectedPrinters && (
+              <div className="flex items-center gap-2 px-4 py-3 rounded-xl border border-amber-200 bg-amber-50 text-amber-700 text-sm">
+                <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                {loadingPrinters ? 'Detecting system printers…' : 'No native printers detected yet. Browser print will still work, or open the app in Electron to bind specific printers.'}
+              </div>
+            )}
           </div>
-          <div>
-            <label className="text-emerald-500 text-xs font-medium block mb-1.5">Thermal Printer</label>
-            <div className="flex items-center gap-3 p-3 bg-white rounded-xl shadow-sm border border-gray-200">
-              <div className="w-2 h-2 rounded-full bg-emerald-500" />
-              <span className="text-gray-900 text-sm">Star TSP100 · USB Connected</span>
-              <button className="ml-auto text-xs text-emerald-500 hover:text-emerald-700">Configure</button>
+
+          <div className="space-y-4">
+            <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-200 space-y-4">
+              <div className="flex items-center gap-2">
+                <ChefHat className="w-4 h-4 text-emerald-600" />
+                <h3 className="text-gray-900 font-semibold">Kitchen Printer</h3>
+              </div>
+              <div className="grid sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-emerald-500 text-xs font-medium block mb-1.5">Printer Name</label>
+                  <select
+                    value={kitchenPrinterName}
+                    onChange={e => setKitchenPrinterName(e.target.value)}
+                    className="w-full px-3 py-2.5 bg-white rounded-xl border border-gray-200 text-sm text-gray-900 focus:outline-none focus:border-emerald-600"
+                  >
+                    <option value="">Use browser selection</option>
+                    {printerChoices.map(printer => <option key={printer.value} value={printer.value}>{printer.label}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-emerald-500 text-xs font-medium block mb-1.5">Connection</label>
+                  <select
+                    value={kitchenPrinterConnection}
+                    onChange={e => setKitchenPrinterConnection(e.target.value as PrinterConnectionType)}
+                    className="w-full px-3 py-2.5 bg-white rounded-xl border border-gray-200 text-sm text-gray-900 focus:outline-none focus:border-emerald-600"
+                  >
+                    {PRINTER_CONNECTION_OPTIONS.map(option => <option key={option} value={option}>{option.charAt(0).toUpperCase() + option.slice(1)}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div className="flex items-center justify-between rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
+                <div>
+                  <div className="text-sm font-medium text-gray-900">Enable Kitchen Printer</div>
+                  <div className="text-xs text-slate-500">Only kitchen and admin devices will auto-print kitchen tickets.</div>
+                </div>
+                <Toggle enabled={kitchenPrinterEnabled} onToggle={() => setKitchenPrinterEnabled(!kitchenPrinterEnabled)} />
+              </div>
+              <div className="flex items-center justify-between rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
+                <div>
+                  <div className="text-sm font-medium text-gray-900">Auto Print Kitchen Tickets</div>
+                  <div className="text-xs text-slate-500">Print new or updated orders automatically on the configured kitchen device.</div>
+                </div>
+                <Toggle enabled={kitchenAutoPrint} onToggle={() => setKitchenAutoPrint(!kitchenAutoPrint)} disabled={!kitchenPrinterEnabled} />
+              </div>
+            </div>
+
+            <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-200 space-y-4">
+              <div className="flex items-center gap-2">
+                <CreditCard className="w-4 h-4 text-emerald-600" />
+                <h3 className="text-gray-900 font-semibold">Cashier Printer</h3>
+              </div>
+              <div className="grid sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-emerald-500 text-xs font-medium block mb-1.5">Printer Name</label>
+                  <select
+                    value={cashierPrinterName}
+                    onChange={e => setCashierPrinterName(e.target.value)}
+                    className="w-full px-3 py-2.5 bg-white rounded-xl border border-gray-200 text-sm text-gray-900 focus:outline-none focus:border-emerald-600"
+                  >
+                    <option value="">Use browser selection</option>
+                    {printerChoices.map(printer => <option key={printer.value} value={printer.value}>{printer.label}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-emerald-500 text-xs font-medium block mb-1.5">Connection</label>
+                  <select
+                    value={cashierPrinterConnection}
+                    onChange={e => setCashierPrinterConnection(e.target.value as PrinterConnectionType)}
+                    className="w-full px-3 py-2.5 bg-white rounded-xl border border-gray-200 text-sm text-gray-900 focus:outline-none focus:border-emerald-600"
+                  >
+                    {PRINTER_CONNECTION_OPTIONS.map(option => <option key={option} value={option}>{option.charAt(0).toUpperCase() + option.slice(1)}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div className="flex items-center justify-between rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
+                <div>
+                  <div className="text-sm font-medium text-gray-900">Enable Cashier Printer</div>
+                  <div className="text-xs text-slate-500">Use this for customer invoices and payment receipts.</div>
+                </div>
+                <Toggle enabled={cashierPrinterEnabled} onToggle={() => setCashierPrinterEnabled(!cashierPrinterEnabled)} />
+              </div>
+              <div className="flex items-center justify-between rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
+                <div>
+                  <div className="text-sm font-medium text-gray-900">Auto Print Cashier Invoices</div>
+                  <div className="text-xs text-slate-500">Print customer invoices automatically on cashier and admin devices.</div>
+                </div>
+                <Toggle enabled={cashierAutoPrint} onToggle={() => setCashierAutoPrint(!cashierAutoPrint)} disabled={!cashierPrinterEnabled} />
+              </div>
             </div>
           </div>
         </div>
