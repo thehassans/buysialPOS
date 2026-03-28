@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useAppStore } from '@/store/app-store'
-import { Bell, Globe, ArrowLeft, ArrowRight, LogOut, Cloud, CloudOff, RefreshCw, Menu } from 'lucide-react'
+import { Bell, Globe, ArrowLeft, ArrowRight, LogOut, Cloud, CloudOff, RefreshCw, Menu, X } from 'lucide-react'
 import { ROLE_LABELS, ROLE_COLORS, cn, getReadableTextColor, mixHexColors, normalizeHexColor, withAlpha } from '@/lib/utils'
 import { useRouter } from 'next/navigation'
 import { getCountryConfig } from '@/lib/country-config'
@@ -10,13 +10,14 @@ import { processQueue, getPendingCount } from '@/lib/sync-queue'
 import TenantBrandMark from '@/components/shared/TenantBrandMark'
 
 export default function TopBar() {
-  const { currentUser, currentTenant, language, setLanguage, activeView, logout, toggleSidebar } = useAppStore()
+  const { currentUser, currentTenant, orders, language, setLanguage, activeView, logout, toggleSidebar } = useAppStore()
   const router = useRouter()
   
   const [isOnline, setIsOnline] = useState(true)
   const [isSyncing, setIsSyncing] = useState(false)
   const [pendingCount, setPendingCount] = useState(0)
   const [lastSynced, setLastSynced] = useState<Date | null>(null)
+  const [showNotifications, setShowNotifications] = useState(false)
 
   useEffect(() => {
     const refreshPending = () => setPendingCount(getPendingCount())
@@ -62,6 +63,12 @@ export default function TopBar() {
 
   if (!currentUser || !currentTenant) return null
 
+  // Real kitchen notifications: orders that are ready and unpaid
+  const readyOrders = orders.filter(
+    o => o.tenantId === currentTenant.id && o.status === 'ready' && !o.isPaid
+  )
+  const notifCount = readyOrders.length
+
   const countryConfig = getCountryConfig(currentTenant.countryCode)
   const isAr = language === 'ar'
   const primaryColor = normalizeHexColor(currentTenant.primaryColor)
@@ -88,6 +95,9 @@ export default function TopBar() {
     settings: 'Settings',
     reports: 'Analytics & Reports',
     tenants: 'Tenant Management',
+    tables: 'Table Management',
+    orders: 'All Orders',
+    'my-orders': 'My Orders',
   }
 
   return (
@@ -163,11 +173,52 @@ export default function TopBar() {
           {isAr ? 'EN' : 'عربي'}
         </button>
 
+        {/* Notification Bell */}
         <div className="relative hidden sm:block">
-          <button className="w-8 h-8 rounded-xl flex items-center justify-center transition-colors border" style={iconButtonStyle}>
+          <button
+            onClick={() => setShowNotifications(v => !v)}
+            className="w-8 h-8 rounded-xl flex items-center justify-center transition-colors border" style={iconButtonStyle}
+          >
             <Bell className="w-4 h-4" />
           </button>
-          <div className={cn('absolute -top-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center text-white text-[9px] font-bold', isAr ? '-left-1' : '-right-1')}>3</div>
+          {notifCount > 0 && (
+            <div className={cn('absolute -top-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center text-white text-[9px] font-bold', isAr ? '-left-1' : '-right-1')}>
+              {notifCount}
+            </div>
+          )}
+          {/* Notification dropdown */}
+          {showNotifications && (
+            <div className={cn(
+              'absolute top-10 z-50 w-72 bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden',
+              isAr ? 'left-0' : 'right-0'
+            )}>
+              <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+                <span className="font-semibold text-sm text-gray-900">🔔 Notifications</span>
+                <button onClick={() => setShowNotifications(false)} className="text-slate-400 hover:text-slate-600">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              {readyOrders.length === 0 ? (
+                <div className="px-4 py-6 text-center text-slate-500 text-sm">No new notifications</div>
+              ) : (
+                <div className="divide-y divide-gray-100 max-h-64 overflow-y-auto">
+                  {readyOrders.map(order => (
+                    <div key={order.id} className="px-4 py-3 hover:bg-emerald-50 transition-colors">
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse flex-shrink-0" />
+                        <span className="text-sm font-semibold text-gray-900">{order.invoiceNumber}</span>
+                        <span className="ml-auto px-2 py-0.5 bg-emerald-100 text-emerald-700 text-[10px] font-bold rounded-full">READY</span>
+                      </div>
+                      <div className="text-xs text-slate-500 mt-1 pl-4">
+                        {order.orderType === 'takeaway' ? '🥡 Takeaway' : `🍽️ Table ${order.tableNumber || '—'}`}
+                        {' · '}{order.items.length} items
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="flex items-center gap-2 px-2.5 sm:px-3 py-1.5 rounded-xl border min-w-0 backdrop-blur-xl" style={iconButtonStyle}>

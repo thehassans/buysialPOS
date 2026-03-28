@@ -4,7 +4,7 @@ import { useAppStore } from '@/store/app-store'
 import {
   LayoutDashboard, ShoppingCart, ChefHat, Package, Users,
   QrCode, Settings, BarChart3, Building2, LogOut, ChevronLeft,
-  ChevronRight, Receipt, UtensilsCrossed, CreditCard
+  ChevronRight, Receipt, UtensilsCrossed, CreditCard, Table2, ClipboardList
 } from 'lucide-react'
 import { cn, getInitials, getReadableTextColor, mixHexColors, normalizeHexColor, ROLE_LABELS, withAlpha } from '@/lib/utils'
 import { useRouter } from 'next/navigation'
@@ -20,6 +20,8 @@ const NAV_ITEMS = {
   admin: [
     { id: 'dashboard', label: 'Dashboard', labelAr: 'لوحة التحكم', icon: LayoutDashboard },
     { id: 'pos', label: 'POS', labelAr: 'نقطة البيع', icon: ShoppingCart },
+    { id: 'orders', label: 'Orders', labelAr: 'الطلبات', icon: ClipboardList },
+    { id: 'tables', label: 'Tables', labelAr: 'الطاولات', icon: Table2 },
     { id: 'menu-management', label: 'Menu', labelAr: 'إدارة القائمة', icon: UtensilsCrossed },
     { id: 'inventory', label: 'Inventory', labelAr: 'المخزون', icon: Package },
     { id: 'hr', label: 'HR & Payroll', labelAr: 'الموارد البشرية', icon: Users },
@@ -30,6 +32,8 @@ const NAV_ITEMS = {
   manager: [
     { id: 'dashboard', label: 'Dashboard', labelAr: 'لوحة التحكم', icon: LayoutDashboard },
     { id: 'pos', label: 'POS', labelAr: 'نقطة البيع', icon: ShoppingCart },
+    { id: 'orders', label: 'Orders', labelAr: 'الطلبات', icon: ClipboardList },
+    { id: 'tables', label: 'Tables', labelAr: 'الطاولات', icon: Table2 },
     { id: 'menu-management', label: 'Menu', labelAr: 'إدارة القائمة', icon: UtensilsCrossed },
     { id: 'inventory', label: 'Inventory', labelAr: 'المخزون', icon: Package },
     { id: 'hr', label: 'Attendance', labelAr: 'الحضور', icon: Users },
@@ -81,7 +85,7 @@ export default function Sidebar() {
       )}
       
       <aside className={cn(
-        'flex flex-col transition-all duration-300 z-40 shadow-2xl h-screen backdrop-blur-xl',
+        'flex flex-col transition-all duration-300 z-40 shadow-2xl h-screen backdrop-blur-xl overflow-hidden',
         isAr ? 'md:border-l' : 'md:border-r',
         'fixed md:relative inset-y-0',
         sidebarOpen 
@@ -91,7 +95,7 @@ export default function Sidebar() {
             : '-translate-x-full md:translate-x-0 md:w-16'
       )}
       style={{
-        background: `linear-gradient(180deg, ${mixHexColors(navigationColor, '#ffffff', 0.08)} 0%, ${sidebarSurface} 100%)`,
+        background: `linear-gradient(180deg, ${mixHexColors(navigationColor, '#ffffff', 0.08)} 0%, ${sidebarSurface} 60%, ${mixHexColors(sidebarSurface, '#0f172a', 0.15)} 100%)`,
         borderColor: withAlpha('#ffffff', sidebarTextColor === '#ffffff' ? 0.12 : 0.3),
       }}>
         {/* Logo */}

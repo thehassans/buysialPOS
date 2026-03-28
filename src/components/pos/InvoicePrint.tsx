@@ -113,6 +113,7 @@ export async function printCustomerInvoice(order: Order, tenant: Tenant) {
         <div class="meta-row"><span>Type:</span><span><span class="order-type">${orderTypeLabel}</span></span></div>
         ${order.customerName ? `<div class="customer-section"><b>Customer:</b> ${order.customerName}${order.customerPhone ? `<br>📞 ${order.customerPhone}` : ''}</div>` : ''}
         ${order.notes ? `<div class="meta-row"><span>Notes:</span><span>${order.notes}</span></div>` : ''}
+        ${order.isEdited ? `<div style="margin-top:6px;padding:4px 8px;background:#fef3c7;border:1px solid #fcd34d;border-radius:6px;font-size:10px;color:#92400e;">✏️ EDITED · ${order.lastEditedByName || ''} · ${order.lastEditedAt ? new Date(order.lastEditedAt).toLocaleString() : ''}</div>` : ''}
       </div>
 
       <div class="divider"></div>
@@ -159,6 +160,12 @@ export async function printCustomerInvoice(order: Order, tenant: Tenant) {
         <div class="qr-label">Scan to verify invoice</div>
       </div>
       ` : ''}
+
+      ${order.isEdited && order.editHistory && order.editHistory.length > 0 ? `
+      <div style="border-top:1px dashed #cbd5e1;margin-top:8px;padding-top:8px;">
+        <div style="font-size:10px;font-weight:700;color:#92400e;margin-bottom:4px;">✏️ Edit History</div>
+        ${order.editHistory.map(h => `<div style="font-size:9px;color:#78350f;margin-bottom:2px;">${new Date(h.editedAt).toLocaleString()} — ${h.editedByName}: ${h.changes}</div>`).join('')}
+      </div>` : ''}
 
       <div class="footer">
         <div class="footer-text">${tenant.invoiceFooter || 'Thank you for your visit!'}</div>

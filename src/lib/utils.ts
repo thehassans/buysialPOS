@@ -75,11 +75,26 @@ export function formatDate(date: Date, format: string = 'DD/MM/YYYY'): string {
     .replace('mm', mins)
 }
 
-export function generateInvoiceNumber(prefix: string = 'INV'): string {
+export function generateInvoiceNumber(prefix: string = 'INV', existingNumbers: string[] = []): string {
   const date = new Date()
   const year = date.getFullYear()
-  const random = Math.floor(Math.random() * 9000) + 1000
-  return `${prefix}-${year}-${random}`
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  const dateStr = `${year}${month}${day}`
+
+  // Find the highest sequence number for today
+  // Format: INV-YYYYMMDD-NNNN — last segment is always the sequence
+  const todayPrefix = `${prefix}-${dateStr}-`
+  const todayNumbers = existingNumbers
+    .filter(num => num.startsWith(todayPrefix))
+    .map(num => {
+      const last = num.split('-').pop()
+      const seq = parseInt(last || '0', 10)
+      return isNaN(seq) ? 0 : seq
+    })
+
+  const nextSeq = todayNumbers.length > 0 ? Math.max(...todayNumbers) + 1 : 1
+  return `${prefix}-${dateStr}-${String(nextSeq).padStart(4, '0')}`
 }
 
 export function getElapsedMinutes(date: Date): number {

@@ -108,6 +108,15 @@ export interface OrderItem {
   status: 'pending' | 'preparing' | 'ready'
 }
 
+export interface OrderEditHistory {
+  editedAt: Date
+  editedBy: string
+  editedByName: string
+  previousTotal: number
+  newTotal: number
+  changes: string
+}
+
 export interface Order {
   id: string
   tenantId: string
@@ -130,6 +139,11 @@ export interface Order {
   customerName?: string
   customerPhone?: string
   orderType?: OrderType
+  editHistory?: OrderEditHistory[]
+  isEdited?: boolean
+  lastEditedAt?: Date
+  lastEditedBy?: string
+  lastEditedByName?: string
 }
 
 export interface Table {

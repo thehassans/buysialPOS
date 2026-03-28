@@ -54,6 +54,9 @@ interface AppState {
   toggleAttendance: (userId: string) => void
   reserveTable: (tableNumber: number, orderId: string) => void
   releaseTable: (tableNumber: number) => void
+  addTable: (table: Table) => void
+  updateTable: (id: string, updates: Partial<Table>) => void
+  deleteTable: (id: string) => void
   initPlatformData: () => Promise<void>
   initFromDB: () => Promise<void>
 }
@@ -267,6 +270,21 @@ export const useAppStore = create<AppState>()(
         )
       })),
 
+      addTable: (table: Table) => {
+        set((state) => ({ tables: [...state.tables.filter(existing => existing.id !== table.id), table] }))
+        apiSync('/api/tables', 'POST', table)
+      },
+
+      updateTable: (id: string, updates: Partial<Table>) => {
+        set((state) => ({ tables: state.tables.map(t => t.id === id ? { ...t, ...updates } : t) }))
+        apiSync(`/api/tables/${id}`, 'PATCH', updates)
+      },
+
+      deleteTable: (id: string) => {
+        set((state) => ({ tables: state.tables.filter(t => t.id !== id) }))
+        apiSync(`/api/tables/${id}`, 'DELETE')
+      },
+
       initPlatformData: async () => {
         try {
           const existingUsers = get().users
@@ -326,19 +344,26 @@ export const useAppStore = create<AppState>()(
           const existingMenuItems = get().menuItems
           const existingInventoryItems = get().inventoryItems
           const existingSuppliers = get().suppliers
+          const existingTables = get().tables
           const existingCurrentUser = get().currentUser
-          const [ordersRes, menuRes, usersRes, categoriesRes, inventoryRes, suppliersRes] = await Promise.all([
+          const [ordersRes, menuRes, usersRes, categoriesRes, inventoryRes, suppliersRes, tablesRes] = await Promise.all([
             fetch(`/api/orders?tenantId=${tenantId}`, NO_STORE_FETCH_OPTIONS),
             fetch(`/api/menu-items?tenantId=${tenantId}`, NO_STORE_FETCH_OPTIONS),
             fetch(`/api/users?tenantId=${tenantId}`, NO_STORE_FETCH_OPTIONS),
             fetch(`/api/categories?tenantId=${tenantId}`, NO_STORE_FETCH_OPTIONS),
             fetch(`/api/inventory?tenantId=${tenantId}`, NO_STORE_FETCH_OPTIONS),
             fetch(`/api/suppliers?tenantId=${tenantId}`, NO_STORE_FETCH_OPTIONS),
+            fetch(`/api/tables?tenantId=${tenantId}`, NO_STORE_FETCH_OPTIONS),
           ])
           if (!ordersRes.ok || !menuRes.ok || !usersRes.ok || !categoriesRes.ok || !inventoryRes.ok || !suppliersRes.ok) return
           const [orders, menuItems, users, categories, inventoryItems, suppliers] = await Promise.all([
             ordersRes.json(), menuRes.json(), usersRes.json(), categoriesRes.json(), inventoryRes.json(), suppliersRes.json(),
           ])
+          // tables fetch is best-effort
+          let dbTables: any[] = []
+          if (tablesRes.ok) {
+            dbTables = await tablesRes.json()
+          }
           const parsedOrders = orders.map((o: any) => ({ ...o, createdAt: new Date(o.createdAt), updatedAt: new Date(o.updatedAt) }))
           const parsedUsers = users.filter((u: any) => u.role !== 'super_admin').map((u: any) => {
             const localUser = existingUsers.find(existing => existing.id === u.id || existing.email.toLowerCase() === u.email.toLowerCase())
@@ -391,6 +416,9 @@ export const useAppStore = create<AppState>()(
           if (parsedSuppliers.length === 0) {
             existingSuppliers.filter(supplier => supplier.tenantId === tenantId).forEach(supplier => apiSync('/api/suppliers', 'POST', supplier))
           }
+          if (dbTables.length === 0) {
+            existingTables.filter(t => t.tenantId === tenantId).forEach(t => apiSync('/api/tables', 'POST', t))
+          }
           const mergedCurrentUser = existingCurrentUser && existingCurrentUser.tenantId === tenantId
             ? parsedUsers.find((user: User) => user.id === existingCurrentUser.id) || existingCurrentUser
             : existingCurrentUser
@@ -402,11 +430,15 @@ export const useAppStore = create<AppState>()(
             inventoryItems: [...existingInventoryItems.filter(item => item.tenantId !== tenantId), ...parsedInventoryItems],
             suppliers: [...existingSuppliers.filter(supplier => supplier.tenantId !== tenantId), ...parsedSuppliers],
             users: [...existingUsers.filter(user => user.tenantId !== tenantId), ...parsedUsers],
+            tables: dbTables.length > 0
+              ? [...existingTables.filter(t => t.tenantId !== tenantId), ...dbTables]
+              : existingTables,
           })
         } catch (e) {
           console.error('initFromDB failed (using localStorage):', e)
         }
       },
+
     }),
     {
       name: 'buysial-pos-storage',

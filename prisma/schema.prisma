@@ -138,6 +138,17 @@ model Supplier {
   isActive      Boolean  @default(true)
 }
 
+model Table {
+  mongoId         String  @id @default(auto()) @map("_id") @db.ObjectId
+  id              String  @unique
+  tenantId        String
+  number          Int
+  capacity        Int     @default(4)
+  isOccupied      Boolean @default(false)
+  currentOrderId  String?
+  section         String?
+}
+
 model SyncQueue {
   mongoId   String   @id @default(auto()) @map("_id") @db.ObjectId
   id        String   @unique @default(uuid())

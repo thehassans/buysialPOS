@@ -15,7 +15,7 @@ import { useEffect } from 'react'
 import { getDevicePrintRole, shouldAutoPrintKitchen } from '@/lib/device-print'
 
 export default function POSInterface() {
-  const { currentTenant, currentUser, addOrder, updateOrder, categories, menuItems, tables, reserveTable, editingOrder, setEditingOrder } = useAppStore()
+  const { currentTenant, currentUser, orders, addOrder, updateOrder, categories, menuItems, tables, reserveTable, editingOrder, setEditingOrder } = useAppStore()
   const [orderType, setOrderType] = useState<OrderType>('dine_in')
   const [selectedTable, setSelectedTable] = useState<Table | null>(null)
   const [selectedCategory, setSelectedCategory] = useState<string>('all')
@@ -94,6 +94,15 @@ export default function POSInterface() {
     if (cart.length === 0) return
 
     if (editingOrder) {
+      const now = new Date()
+      const editEntry = {
+        editedAt: now,
+        editedBy: currentUser?.id || '',
+        editedByName: currentUser?.name || '',
+        previousTotal: editingOrder.total,
+        newTotal: total,
+        changes: `Items updated. Total changed from ${editingOrder.total.toFixed(2)} to ${total.toFixed(2)}`,
+      }
       updateOrder(editingOrder.id, {
         items: cart,
         subtotal,
@@ -104,6 +113,11 @@ export default function POSInterface() {
         orderType,
         customerName: customerName || undefined,
         customerPhone: customerPhone || undefined,
+        isEdited: true,
+        lastEditedAt: now,
+        lastEditedBy: currentUser?.id || '',
+        lastEditedByName: currentUser?.name || '',
+        editHistory: [...(editingOrder.editHistory || []), editEntry],
       })
       setLastOrder({ ...editingOrder, items: cart, total, subtotal, vatAmount })
       if (autoPrintKitchen && shouldAutoPrintKitchen(currentTenant)) {
@@ -123,10 +137,16 @@ export default function POSInterface() {
       return
     }
 
+    const existingInvoiceNumbers = (orders as import('@/lib/types').Order[])
+      .filter(o => o.tenantId === currentTenant.id)
+      .map(o => o.invoiceNumber)
+      .filter((n): n is string => typeof n === 'string' && n.length > 0)
+
     const order = {
       id: `ord-${Date.now()}`,
       tenantId: currentTenant.id,
       waiterId: currentUser?.role === 'waiter' ? currentUser.id : undefined,
+      cashierId: currentUser?.role === 'cashier' ? currentUser.id : undefined,
       tableNumber: orderType === 'dine_in' ? selectedTable?.number : undefined,
       items: cart,
       status: 'pending' as const,
@@ -137,7 +157,7 @@ export default function POSInterface() {
       isPaid: false,
       createdAt: new Date(),
       updatedAt: new Date(),
-      invoiceNumber: generateInvoiceNumber('INV'),
+      invoiceNumber: generateInvoiceNumber('INV', existingInvoiceNumbers),
       notes,
       orderType,
       customerName: customerName || undefined,
@@ -162,6 +182,7 @@ export default function POSInterface() {
       setCustomerPhone('')
     }, 3500)
   }
+
 
   if (orderSent && lastOrder) {
     return (
