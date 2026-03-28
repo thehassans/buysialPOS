@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { Order, Tenant } from '@/lib/types'
 import { TaxEngine, generateZATCAQRData, COUNTRY_CONFIGS } from '@/lib/country-config'
@@ -47,8 +47,8 @@ export async function printCustomerInvoice(order: Order, tenant: Tenant) {
   const config = COUNTRY_CONFIGS[tenant.countryCode]
   const zatcaQrDataUrl = await buildInvoiceZatcaQrDataUrl(order, tenant)
 
-  const orderTypeLabel = order.orderType === 'takeaway' ? '🥡 Take Away' : '🍽️ Dine In'
-  const countryFlag = tenant.countryCode === 'KSA' ? '🇸🇦' : tenant.countryCode === 'UAE' ? '🇦🇪' : '🇴🇲'
+  const orderTypeLabel = order.orderType === 'takeaway' ? 'ðŸ¥¡ Take Away' : 'ðŸ½ï¸ Dine In'
+  const countryFlag = tenant.countryCode === 'KSA' ? 'ðŸ‡¸ðŸ‡¦' : tenant.countryCode === 'UAE' ? 'ðŸ‡¦ðŸ‡ª' : 'ðŸ‡´ðŸ‡²'
   const accentColor = tenant.primaryColor || '#059669'
   const metaTone = tenant.secondaryColor || '#0f766e'
 
@@ -107,18 +107,18 @@ export async function printCustomerInvoice(order: Order, tenant: Tenant) {
 
     <div class="content">
       <div class="invoice-meta">
-        <div class="meta-row"><span>Invoice:</span><span><b>${order.invoiceNumber}</b></span></div>
-        <div class="meta-row"><span>Date:</span><span>${new Date(order.createdAt).toLocaleString()}</span></div>
-        ${order.tableNumber ? `<div class="meta-row"><span>Table:</span><span><b>${order.tableNumber}</b></span></div>` : ''}
-        <div class="meta-row"><span>Type:</span><span><span class="order-type">${orderTypeLabel}</span></span></div>
-        ${order.customerName ? `<div class="customer-section"><b>Customer:</b> ${order.customerName}${order.customerPhone ? `<br>📞 ${order.customerPhone}` : ''}</div>` : ''}
-        ${order.notes ? `<div class="meta-row"><span>Notes:</span><span>${order.notes}</span></div>` : ''}
-        ${order.isEdited ? `<div style="margin-top:6px;padding:4px 8px;background:#fef3c7;border:1px solid #fcd34d;border-radius:6px;font-size:10px;color:#92400e;">✏️ EDITED · ${order.lastEditedByName || ''} · ${order.lastEditedAt ? new Date(order.lastEditedAt).toLocaleString() : ''}</div>` : ''}
+        <div class="meta-row"><span>Invoice · <span dir='rtl'>فاتورة</span></span><span><b>${order.invoiceNumber}</b></span></div>
+        <div class="meta-row"><span>Date · <span dir='rtl'>التاريخ</span></span><span>${new Date(order.createdAt).toLocaleString()}</span></div>
+        ${order.tableNumber ? `<div class="meta-row"><span>Table · <span dir='rtl'>الطاولة</span></span><span><b>${order.tableNumber}</b></span></div>` : ''}
+        <div class="meta-row"><span>Type · <span dir='rtl'>النوع</span></span><span><span class="order-type">${orderTypeLabel}</span></span></div>
+        ${order.customerName ? `<div class="customer-section"><b>Customer:</b> ${order.customerName}${order.customerPhone ? `<br>ðŸ“ž ${order.customerPhone}` : ''}</div>` : ''}
+        ${order.notes ? `<div class="meta-row"><span>Notes · <span dir='rtl'>ملاحظات</span></span><span>${order.notes}</span></div>` : ''}
+        ${order.isEdited ? `<div style="margin-top:6px;padding:4px 8px;background:#fef3c7;border:1px solid #fcd34d;border-radius:6px;font-size:10px;color:#92400e;">âœï¸ EDITED Â· ${order.lastEditedByName || ''} Â· ${order.lastEditedAt ? new Date(order.lastEditedAt).toLocaleString() : ''}</div>` : ''}
       </div>
 
       <div class="divider"></div>
       <div style="font-size:10px; font-weight:700; margin-bottom:4px; display:flex; justify-content:space-between; color:#475569;">
-        <span>ITEM</span><span>QTY</span><span>TOTAL</span>
+        <span>ITEM</span><span>QTY</span><span>TOTAL · <span dir='rtl'>الإجمالي</span></span>
       </div>
       <div class="divider"></div>
 
@@ -137,16 +137,16 @@ export async function printCustomerInvoice(order: Order, tenant: Tenant) {
 
       <div class="totals">
         <div class="total-row">
-          <span>Subtotal</span>
+          <span>Subtotal · <span dir='rtl'>المجموع الفرعي</span></span>
           <span>${taxEngine.formatCurrency(order.subtotal)}</span>
         </div>
         <div class="total-row">
           <span>${taxEngine.getVatLabel()}</span>
           <span>${taxEngine.formatCurrency(order.vatAmount)}</span>
         </div>
-        ${order.isPaid ? `<div class="total-row" style="color:#16a34a;"><span>Payment (${order.paymentMethod || 'cash'})</span><span>✓ PAID</span></div>` : ''}
+        ${order.isPaid ? `<div class="total-row" style="color:#16a34a;"><span>Payment (${order.paymentMethod || 'cash'})</span><span>âœ“ PAID</span></div>` : ''}
         <div class="total-row grand">
-          <span>TOTAL</span>
+          <span>TOTAL · <span dir='rtl'>الإجمالي</span></span>
           <span>${taxEngine.formatCurrency(order.total)}</span>
         </div>
       </div>
@@ -163,12 +163,12 @@ export async function printCustomerInvoice(order: Order, tenant: Tenant) {
 
       ${order.isEdited && order.editHistory && order.editHistory.length > 0 ? `
       <div style="border-top:1px dashed #cbd5e1;margin-top:8px;padding-top:8px;">
-        <div style="font-size:10px;font-weight:700;color:#92400e;margin-bottom:4px;">✏️ Edit History</div>
-        ${order.editHistory.map(h => `<div style="font-size:9px;color:#78350f;margin-bottom:2px;">${new Date(h.editedAt).toLocaleString()} — ${h.editedByName}: ${h.changes}</div>`).join('')}
+        <div style="font-size:10px;font-weight:700;color:#92400e;margin-bottom:4px;">âœï¸ Edit History</div>
+        ${order.editHistory.map(h => `<div style="font-size:9px;color:#78350f;margin-bottom:2px;">${new Date(h.editedAt).toLocaleString()} â€” ${h.editedByName}: ${h.changes}</div>`).join('')}
       </div>` : ''}
 
       <div class="footer">
-        <div class="footer-text">${tenant.invoiceFooter || 'Thank you for your visit!'}</div>
+        <div class="footer-text">${tenant.invoiceFooter || 'Thank you for your visit! · شكراً لزيارتكم'}</div>
         <div class="footer-text" style="margin-top:4px; font-size:9px;">Powered by Buysial ERP</div>
         <div class="footer-text" style="font-size:9px;">${new Date().toLocaleString()}</div>
       </div>
@@ -181,7 +181,7 @@ export async function printCustomerInvoice(order: Order, tenant: Tenant) {
 }
 
 export function printKitchenTicket(order: Order, tenant: Tenant) {
-  const orderTypeLabel = order.orderType === 'takeaway' ? '🥡 TAKE AWAY' : '🍽️ DINE IN'
+  const orderTypeLabel = order.orderType === 'takeaway' ? 'ðŸ¥¡ TAKE AWAY' : 'ðŸ½ï¸ DINE IN'
   const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -210,7 +210,7 @@ export function printKitchenTicket(order: Order, tenant: Tenant) {
 <body>
   <div class="header">
     ${tenant.logo ? `<img src="${tenant.logo}" alt="${tenant.name}" style="width:42px;height:42px;object-fit:cover;border-radius:10px;border:1px solid #d1d5db;margin:0 auto 6px auto;display:block;" />` : ''}
-    <div class="kitchen-title">🍳 KITCHEN</div>
+    <div class="kitchen-title">ðŸ³ KITCHEN</div>
     <div>${tenant.name}</div>
     <div class="order-badge">${order.invoiceNumber}</div>
     <div><span class="order-type">${orderTypeLabel}</span></div>
@@ -218,12 +218,12 @@ export function printKitchenTicket(order: Order, tenant: Tenant) {
     ${order.customerName ? `<div class="meta">CUSTOMER: <b>${order.customerName}</b></div>` : ''}
   </div>
 
-  <div class="meta" style="text-align:center;">⏰ ${new Date(order.createdAt).toLocaleTimeString()}</div>
+  <div class="meta" style="text-align:center;">â° ${new Date(order.createdAt).toLocaleTimeString()}</div>
   <div class="divider"></div>
 
   ${order.items.map(item => `
   <div class="item">
-    <span class="item-qty">× ${item.quantity}</span>
+    <span class="item-qty">Ã— ${item.quantity}</span>
     <div class="item-name">${item.menuItem.name}</div>
     ${item.notes ? `<div class="item-notes">Note: ${item.notes}</div>` : ''}
   </div>
@@ -239,3 +239,5 @@ export function printKitchenTicket(order: Order, tenant: Tenant) {
 
   void printHtmlDocument(html, `Kitchen Ticket ${order.invoiceNumber}`, 'kitchen', tenant)
 }
+
+

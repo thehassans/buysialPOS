@@ -362,6 +362,12 @@ export default function MenuManagementModule() {
                   <label className="text-xs font-semibold text-slate-600 block mb-1">Price ({currencySymbol}) *</label>
                   <input type="number" min="0" step="0.5" value={form.price || ''} onChange={e => setForm(f => ({ ...f, price: parseFloat(e.target.value) || 0 }))}
                     className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-emerald-400" />
+                  {(form.price || 0) > 0 && (
+                    <div className="mt-1 text-[10px] text-emerald-700 font-semibold bg-emerald-50 rounded-lg px-2 py-1">
+                      After VAT ({Math.round((currentTenant.vatRate || 0) * 100)}%):{' '}
+                      {formatCurrency((form.price || 0) * (1 + (currentTenant.vatRate || 0)), currentTenant.currency)}
+                    </div>
+                  )}
                 </div>
                 <div>
                   <label className="text-xs font-semibold text-slate-600 block mb-1">Calories (kcal)</label>
@@ -399,6 +405,11 @@ export default function MenuManagementModule() {
                     disabled={!form.hasHalfPlate}
                     className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-emerald-400 disabled:bg-gray-100 disabled:text-slate-400"
                   />
+                  {form.hasHalfPlate && (form.halfPlatePrice || 0) > 0 && (
+                    <div className="mt-1 text-[10px] text-emerald-700 font-semibold bg-emerald-50 rounded-lg px-2 py-1">
+                      After VAT: {formatCurrency((form.halfPlatePrice || 0) * (1 + (currentTenant.vatRate || 0)), currentTenant.currency)}
+                    </div>
+                  )}
                 </div>
               </div>
 

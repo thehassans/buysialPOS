@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
-import { User, Tenant, Order, OrderItem, MenuItem, Table, Theme, Language, InventoryItem, AttendanceRecord, Category, Supplier } from '@/lib/types'
+import { User, Tenant, Order, OrderItem, MenuItem, Table, Theme, Language, InventoryItem, AttendanceRecord, Category, Supplier, Branch } from '@/lib/types'
 import { MOCK_USERS, MOCK_TENANTS, MOCK_ORDERS, MOCK_MENU_ITEMS, MOCK_TABLES, MOCK_INVENTORY, MOCK_ATTENDANCE, MOCK_CATEGORIES, MOCK_SUPPLIERS } from '@/lib/mock-data'
 import { apiSync } from '@/lib/sync-queue'
 
@@ -17,6 +17,7 @@ interface AppState {
   categories: Category[]
   menuItems: MenuItem[]
   tables: Table[]
+  branches: Branch[]
   inventoryItems: InventoryItem[]
   suppliers: Supplier[]
   attendance: AttendanceRecord[]
@@ -57,6 +58,9 @@ interface AppState {
   addTable: (table: Table) => void
   updateTable: (id: string, updates: Partial<Table>) => void
   deleteTable: (id: string) => void
+  addBranch: (branch: Branch) => void
+  updateBranch: (id: string, updates: Partial<Branch>) => void
+  deleteBranch: (id: string) => void
   initPlatformData: () => Promise<void>
   initFromDB: () => Promise<void>
 }
@@ -74,6 +78,7 @@ export const useAppStore = create<AppState>()(
       categories: MOCK_CATEGORIES,
       menuItems: MOCK_MENU_ITEMS,
       tables: MOCK_TABLES,
+      branches: [],
       inventoryItems: MOCK_INVENTORY,
       suppliers: MOCK_SUPPLIERS,
       attendance: MOCK_ATTENDANCE,
@@ -284,6 +289,10 @@ export const useAppStore = create<AppState>()(
         set((state) => ({ tables: state.tables.filter(t => t.id !== id) }))
         apiSync(`/api/tables/${id}`, 'DELETE')
       },
+
+      addBranch: (branch) => set((state) => ({ branches: [...state.branches, branch] })),
+      updateBranch: (id, updates) => set((state) => ({ branches: state.branches.map(b => b.id === id ? { ...b, ...updates } : b) })),
+      deleteBranch: (id) => set((state) => ({ branches: state.branches.filter(b => b.id !== id) })),
 
       initPlatformData: async () => {
         try {

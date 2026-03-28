@@ -4,7 +4,7 @@ import { useAppStore } from '@/store/app-store'
 import {
   LayoutDashboard, ShoppingCart, ChefHat, Package, Users,
   QrCode, Settings, BarChart3, Building2, LogOut, ChevronLeft,
-  ChevronRight, Receipt, UtensilsCrossed, CreditCard, Table2, ClipboardList
+  ChevronRight, Receipt, UtensilsCrossed, CreditCard, Table2, ClipboardList, GitBranch
 } from 'lucide-react'
 import { cn, getInitials, getReadableTextColor, mixHexColors, normalizeHexColor, ROLE_LABELS, withAlpha } from '@/lib/utils'
 import { useRouter } from 'next/navigation'
@@ -22,6 +22,7 @@ const NAV_ITEMS = {
     { id: 'pos', label: 'POS', labelAr: 'نقطة البيع', icon: ShoppingCart },
     { id: 'orders', label: 'Orders', labelAr: 'الطلبات', icon: ClipboardList },
     { id: 'tables', label: 'Tables', labelAr: 'الطاولات', icon: Table2 },
+    { id: 'branches', label: 'Branches', labelAr: 'الفروع', icon: GitBranch },
     { id: 'menu-management', label: 'Menu', labelAr: 'إدارة القائمة', icon: UtensilsCrossed },
     { id: 'inventory', label: 'Inventory', labelAr: 'المخزون', icon: Package },
     { id: 'hr', label: 'HR & Payroll', labelAr: 'الموارد البشرية', icon: Users },

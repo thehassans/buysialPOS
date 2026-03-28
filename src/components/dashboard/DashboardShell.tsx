@@ -20,6 +20,7 @@ import WaiterOrders from '../pos/WaiterOrders'
 import MenuManagementModule from '../modules/MenuManagementModule'
 import TablesModule from '../modules/TablesModule'
 import OrdersModule from '../modules/OrdersModule'
+import BranchesModule from '../modules/BranchesModule'
 
 export default function DashboardShell() {
   const { currentUser, currentTenant, activeView, sidebarOpen, language, initPlatformData, initFromDB } = useAppStore()
@@ -91,6 +92,8 @@ export default function DashboardShell() {
         return <TablesModule />
       case 'orders':
         return <OrdersModule />
+      case 'branches':
+        return <BranchesModule />
       default:
         if (role === 'super_admin') return <SuperAdminDashboard />
         return <AdminDashboard />

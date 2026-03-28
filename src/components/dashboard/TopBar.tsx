@@ -97,6 +97,7 @@ export default function TopBar() {
     tenants: 'Tenant Management',
     tables: 'Table Management',
     orders: 'All Orders',
+    branches: 'Branch Management',
     'my-orders': 'My Orders',
   }
 

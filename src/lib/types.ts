@@ -240,3 +240,14 @@ export interface KDSOrder {
   priority: 'normal' | 'high' | 'urgent'
   elapsedMinutes: number
 }
+
+export interface Branch {
+  id: string
+  tenantId: string
+  name: string
+  address?: string
+  phone?: string
+  managerName?: string
+  isActive: boolean
+  createdAt: Date
+}
