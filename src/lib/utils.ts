@@ -47,7 +47,7 @@ export function getReadableTextColor(color?: string) {
 }
 
 const CURRENCY_SYMBOLS: Record<Currency, string> = {
-  SAR: '\u20C1',
+  SAR: 'ر.س',
   AED: 'د.إ',
   OMR: 'ر.ع.',
 }

@@ -100,7 +100,7 @@ export async function printCustomerInvoice(order: Order, tenant: Tenant) {
       ${getPrintableBrandMarkup(tenant)}
       <div class="restaurant-name">${countryFlag} ${tenant.name}</div>
       <div class="address">${tenant.address}</div>
-      <div class="address">Tel: ${tenant.phone}</div>
+      ${tenant.phone ? `<div class="address">${tenant.phone}</div>` : ''}
       ${tenant.vatNumber ? `<div class="address">VAT No: ${tenant.vatNumber}</div>` : ''}
       ${tenant.crNumber ? `<div class="address">CR No: ${tenant.crNumber}</div>` : ''}
     </div>
@@ -124,12 +124,15 @@ export async function printCustomerInvoice(order: Order, tenant: Tenant) {
 
       <div class="items-table">
         ${order.items.map(item => `
-        <div class="item-row">
-          <span class="item-name">${item.menuItem.name}</span>
-          <span class="item-qty">${item.quantity}</span>
+        <div class="item-row" style="align-items: flex-start; margin-bottom:2px;">
+          <div class="item-name" style="flex:1; display:flex; flex-direction:column;">
+            <span>${item.menuItem.name}</span>
+            ${item.menuItem.nameAr ? `<span dir="rtl" style="font-size:10px; color:#64748b; font-weight:normal; margin-top:2px;">${item.menuItem.nameAr}</span>` : ''}
+          </div>
+          <span class="item-qty" style="padding: 0 4px;">${item.quantity}</span>
           <span class="item-price">${taxEngine.formatCurrency(item.unitPrice * item.quantity)}</span>
         </div>
-        <div style="font-size:9px; color:#64748b; padding-left:8px; margin-bottom:2px;">${taxEngine.formatCurrency(item.unitPrice)} each</div>
+        <div style="font-size:9px; color:#64748b; padding-left:8px; margin-bottom:6px;">${taxEngine.formatCurrency(item.unitPrice)} each</div>
         `).join('')}
       </div>
 
