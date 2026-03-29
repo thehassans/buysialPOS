@@ -66,6 +66,7 @@ export default function SettingsModule() {
   const [restaurantPhone, setRestaurantPhone] = useState('')
   const [restaurantAddress, setRestaurantAddress] = useState('')
   const [vatNumber, setVatNumber] = useState('')
+  const [crNumber, setCrNumber] = useState('')
   const [logo, setLogo] = useState<string | undefined>(undefined)
   const [primaryColor, setPrimaryColor] = useState('#059669')
   const [secondaryColor, setSecondaryColor] = useState('#0f766e')
@@ -97,6 +98,7 @@ export default function SettingsModule() {
     setRestaurantPhone(currentTenant.phone || '')
     setRestaurantAddress(currentTenant.address || '')
     setVatNumber(currentTenant.vatNumber || '')
+    setCrNumber(currentTenant.crNumber || '')
     setLogo(currentTenant.logo)
     setPrimaryColor(currentTenant.primaryColor || '#059669')
     setSecondaryColor(currentTenant.secondaryColor || '#0f766e')
@@ -155,6 +157,7 @@ export default function SettingsModule() {
       phone: restaurantPhone.trim(),
       address: restaurantAddress.trim(),
       vatNumber: vatNumber.trim() || undefined,
+      crNumber: crNumber.trim() || undefined,
       vatRate: Math.max(0, Number(vatRate || 0)) / 100,
       invoiceFooter: invoiceFooter.trim() || undefined,
       logo,
@@ -454,6 +457,16 @@ export default function SettingsModule() {
               onChange={e => setVatNumber(e.target.value)}
               className="w-full px-3 py-2.5 bg-white rounded-xl shadow-sm text-sm text-gray-900 border border-gray-200 focus:outline-none focus:border-emerald-600 font-mono"
               placeholder="Enter VAT number..."
+            />
+          </div>
+          <div>
+            <label className="text-emerald-500 text-xs font-medium block mb-1.5">CR Number (Commercial Registration)</label>
+            <input
+              type="text"
+              value={crNumber}
+              onChange={e => setCrNumber(e.target.value)}
+              className="w-full px-3 py-2.5 bg-white rounded-xl shadow-sm text-sm text-gray-900 border border-gray-200 focus:outline-none focus:border-emerald-600 font-mono"
+              placeholder="Enter CR number..."
             />
           </div>
         </div>

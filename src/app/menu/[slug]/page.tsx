@@ -5,7 +5,7 @@ import { useSearchParams } from 'next/navigation'
 import { MOCK_TENANTS, MOCK_MENU_ITEMS } from '@/lib/mock-data'
 import { TaxEngine } from '@/lib/country-config'
 import { cn } from '@/lib/utils'
-import { Search, Flame, Sparkles, ChefHat, MapPin, Phone, Star, Clock } from 'lucide-react'
+import { Search, Flame, Sparkles, ChefHat, MapPin, Phone, Clock } from 'lucide-react'
 import { Category, MenuItem, Tenant } from '@/lib/types'
 
 // ── SAR symbol per SAMA 2023 standard ──────────────────────────────────────
@@ -19,13 +19,6 @@ function SARBadge({ className }: { className?: string }) {
       ر.س
     </span>
   )
-}
-
-function formatSAR(amount: number, currency: string) {
-  if (currency === 'SAR') {
-    return amount.toFixed(2)
-  }
-  return new Intl.NumberFormat('en', { style: 'currency', currency }).format(amount)
 }
 
 function buildTenantFromQuery(searchParams: URLSearchParams, slug: string): Tenant | null {
@@ -137,12 +130,12 @@ export default function PublicMenuPage({ params }: { params: { slug: string } })
   // ── Loading state ───────────────────────────────────────────────────────
   if (tenantLookupPending && !tenant) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: 'radial-gradient(circle at 20% 30%, #0d2f1e 0%, #050b06 60%)' }}>
+      <div className="min-h-screen flex items-center justify-center bg-[#faf9f6]">
         <div className="text-center space-y-4">
-          <div className="w-20 h-20 rounded-full border border-emerald-500/30 bg-emerald-500/10 flex items-center justify-center mx-auto animate-pulse">
-            <ChefHat className="w-9 h-9 text-emerald-400" />
+          <div className="w-16 h-16 rounded-full border border-gray-200 bg-white shadow-sm flex items-center justify-center mx-auto animate-pulse">
+            <ChefHat className="w-8 h-8 text-gray-400" />
           </div>
-          <p className="text-emerald-300 text-sm font-medium tracking-widest uppercase">Loading Menu…</p>
+          <p className="text-gray-400 text-[11px] font-medium tracking-[0.2em] uppercase">Loading Menu…</p>
         </div>
       </div>
     )
@@ -150,66 +143,53 @@ export default function PublicMenuPage({ params }: { params: { slug: string } })
 
   if (!tenant || !tenantId) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: '#050b06' }}>
-        <div className="text-center text-slate-400 space-y-2">
-          <ChefHat className="w-12 h-12 text-slate-600 mx-auto" />
-          <p className="text-sm">Menu unavailable. Scan the restaurant's QR code again.</p>
+      <div className="min-h-screen flex items-center justify-center bg-[#faf9f6]">
+        <div className="text-center text-gray-400 space-y-4">
+          <div className="w-16 h-16 rounded-full bg-white shadow-sm flex items-center justify-center mx-auto">
+            <ChefHat className="w-8 h-8 text-gray-300" />
+          </div>
+          <p className="text-sm">Menu unavailable. Please scan the QR code again.</p>
         </div>
       </div>
     )
   }
 
-  const priceDisplay = (price: number) => isSAR
-    ? <><SARBadge className="text-emerald-400 text-xs" /> <span>{price.toFixed(2)}</span></>
-    : <span>{new TaxEngine(tenant.countryCode, tenant.vatRate).formatCurrency(price)}</span>
-
   return (
-    <div className="min-h-screen text-white" style={{ background: 'radial-gradient(ellipse at top left, #0f2a1a 0%, #07120f 40%, #030808 100%)' }}>
+    <div className="min-h-screen text-slate-900 bg-[#fdfdfc] font-sans transition-colors selection:bg-emerald-100 selection:text-emerald-900">
 
       {/* ── Hero header ─────────────────────────────────────────────────── */}
-      <header className="relative overflow-hidden">
-        <div className="absolute inset-0 pointer-events-none" style={{ background: `radial-gradient(circle at 60% 0%, ${brandColor}22 0%, transparent 60%)` }} />
-        <div className="mx-auto max-w-2xl px-5 pt-10 pb-8">
-          <div
-            className="relative rounded-[32px] border overflow-hidden p-6"
-            style={{ background: 'rgba(255,255,255,0.04)', borderColor: 'rgba(255,255,255,0.08)', backdropFilter: 'blur(24px)' }}
-          >
-            <div className="flex items-center gap-5">
-              {/* Logo */}
-              <div
-                className="w-20 h-20 rounded-[22px] flex-shrink-0 overflow-hidden border flex items-center justify-center text-2xl font-black"
-                style={{ borderColor: 'rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.07)' }}
-              >
-                {tenant.logo ? (
-                  <img src={tenant.logo} alt={tenant.name} className="w-full h-full object-cover" />
-                ) : (
-                  tenant.name.charAt(0)
-                )}
-              </div>
-              {/* Info */}
-              <div className="min-w-0 flex-1">
-                <h1 className="text-2xl font-black text-white leading-tight truncate">{tenant.name}</h1>
+      <header className="relative overflow-hidden bg-white border-b border-gray-100 pb-8 pt-12">
+        <div className="mx-auto max-w-2xl px-5">
+          <div className="flex flex-col items-center text-center">
+            {/* Logo */}
+            <div
+              className="w-24 h-24 rounded-full flex-shrink-0 overflow-hidden border border-gray-100 flex items-center justify-center text-3xl font-black bg-white shadow-sm mb-6 pb-0.5"
+              style={{ color: brandColor }}
+            >
+              {tenant.logo ? (
+                <img src={tenant.logo} alt={tenant.name} className="w-full h-full object-cover" />
+              ) : (
+                tenant.name.charAt(0)
+              )}
+            </div>
+            {/* Info */}
+            <div className="max-w-md w-full">
+              <h1 className="text-3xl tracking-tight font-light text-slate-900 leading-tight mb-2" style={{ fontFamily: 'Georgia, serif' }}>
+                {tenant.name}
+              </h1>
+              <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-slate-500 text-[11px] uppercase tracking-wider">
                 {tenant.address && (
-                  <p className="text-slate-400 text-xs mt-1 flex items-center gap-1 truncate">
-                    <MapPin className="w-3 h-3 flex-shrink-0" style={{ color: brandColor }} />
+                  <p className="flex items-center gap-1.5 truncate">
+                    <MapPin className="w-3.5 h-3.5" style={{ color: brandColor }} />
                     {tenant.address}
                   </p>
                 )}
                 {tenant.phone && (
-                  <p className="text-slate-400 text-xs mt-0.5 flex items-center gap-1">
-                    <Phone className="w-3 h-3 flex-shrink-0" style={{ color: brandColor }} />
+                  <p className="flex items-center gap-1.5">
+                    <Phone className="w-3.5 h-3.5" style={{ color: brandColor }} />
                     {tenant.phone}
                   </p>
                 )}
-                <div className="mt-2 flex items-center gap-2">
-                  <span
-                    className="text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full border"
-                    style={{ color: brandColor, borderColor: `${brandColor}44`, background: `${brandColor}11` }}
-                  >
-                    {isSAR ? 'ر.س SAR Menu' : `${tenant.currency} Menu`}
-                  </span>
-                  <span className="text-[10px] text-slate-500">· View Only</span>
-                </div>
               </div>
             </div>
           </div>
@@ -217,132 +197,138 @@ export default function PublicMenuPage({ params }: { params: { slug: string } })
       </header>
 
       {/* ── Main content ─────────────────────────────────────────────────── */}
-      <main className="mx-auto max-w-2xl px-5 pb-16">
+      <main className="mx-auto max-w-2xl px-5 pb-24 pt-8">
 
         {/* Search */}
-        <div
-          className="mb-5 flex items-center gap-3 px-4 py-3 rounded-2xl border"
-          style={{ background: 'rgba(255,255,255,0.04)', borderColor: 'rgba(255,255,255,0.08)' }}
-        >
-          <Search className="w-4 h-4 text-slate-500 flex-shrink-0" />
+        <div className="relative mb-8 max-w-md mx-auto">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <input
             value={search}
             onChange={e => setSearch(e.target.value)}
-            placeholder="Search dishes…"
-            className="flex-1 bg-transparent text-white text-sm placeholder:text-slate-600 focus:outline-none"
+            placeholder="Search our offerings…"
+            className="w-full pl-11 pr-4 py-3.5 bg-gray-50/50 border border-gray-200 rounded-full text-[13px] text-slate-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500/30 transition-shadow"
           />
           {search && (
-            <button onClick={() => setSearch('')} className="text-slate-500 hover:text-white text-xs">✕</button>
+            <button onClick={() => setSearch('')} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">✕</button>
           )}
         </div>
 
         {/* Category pills */}
-        <div className="flex gap-2 overflow-x-auto pb-2 mb-6 scrollbar-none">
+        <div className="flex justify-center flex-wrap gap-2.5 mb-10">
           <button
             onClick={() => setActiveCategory('all')}
-            className="flex-shrink-0 px-4 py-2 rounded-full text-sm font-semibold transition-all"
-            style={activeCategory === 'all'
-              ? { background: brandColor, color: '#fff' }
-              : { background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.6)', border: '1px solid rgba(255,255,255,0.08)' }}
+            className={cn(
+              "px-5 py-2 rounded-full text-[11px] font-semibold tracking-wide uppercase transition-all whitespace-nowrap",
+              activeCategory === 'all'
+                ? "bg-slate-900 text-white shadow-md border border-transparent"
+                : "bg-white text-slate-600 border border-gray-200 hover:border-gray-300 hover:text-slate-900"
+            )}
+            style={activeCategory === 'all' ? { backgroundColor: brandColor, borderColor: brandColor } : {}}
           >
-            All
+            All Items
           </button>
           {availableCategories.map(cat => (
             <button
               key={cat.id}
               onClick={() => setActiveCategory(cat.id)}
-              className="flex-shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold transition-all"
-              style={activeCategory === cat.id
-                ? { background: brandColor, color: '#fff' }
-                : { background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.6)', border: '1px solid rgba(255,255,255,0.08)' }}
+              className={cn(
+                "px-5 py-2 rounded-full text-[11px] font-semibold tracking-wide uppercase transition-all whitespace-nowrap flex items-center gap-2",
+                activeCategory === cat.id
+                  ? "bg-slate-900 text-white shadow-md border border-transparent"
+                  : "bg-white text-slate-600 border border-gray-200 hover:border-gray-300 hover:text-slate-900"
+              )}
+              style={activeCategory === cat.id ? { backgroundColor: brandColor, borderColor: brandColor } : {}}
             >
               <span>{cat.icon}</span> {cat.name}
             </button>
           ))}
         </div>
 
-        {/* Items count */}
-        <div className="flex items-center justify-between mb-4">
-          <p className="text-slate-500 text-xs font-semibold uppercase tracking-widest">
-            {filtered.length} {filtered.length === 1 ? 'dish' : 'dishes'}
+        {/* Header line */}
+        <div className="flex items-center gap-4 mb-8">
+          <div className="h-px bg-gray-200 flex-1" />
+          <p className="text-gray-400 text-[10px] uppercase font-bold tracking-[0.2em] whitespace-nowrap">
+            {activeCategory === 'all' ? 'Menu Array' : availableCategories.find(c => c.id === activeCategory)?.name}
           </p>
-          <p className="text-slate-600 text-xs">Prices excl. VAT</p>
+          <div className="h-px bg-gray-200 flex-1" />
         </div>
 
         {/* Loading */}
         {isLoading && (
-          <div className="text-center py-16 text-slate-600 text-sm animate-pulse">Loading menu…</div>
+          <div className="text-center py-24 text-gray-400 text-[11px] uppercase tracking-widest animate-pulse">Curating menu…</div>
         )}
 
         {/* Empty */}
         {!isLoading && filtered.length === 0 && (
-          <div className="text-center py-16">
-            <p className="text-slate-500 text-sm">No dishes found.</p>
+          <div className="text-center py-24">
+            <p className="text-gray-400 text-sm">No dishes found in this category.</p>
           </div>
         )}
 
         {/* Menu items */}
         {!isLoading && (
-          <div className="space-y-3">
+          <div className="grid gap-6">
             {filtered.map(item => (
               <div
                 key={item.id}
-                className="group flex gap-4 p-4 rounded-[24px] border transition-all hover:border-white/12"
-                style={{ background: 'rgba(255,255,255,0.035)', borderColor: 'rgba(255,255,255,0.07)' }}
+                className="group flex gap-5 p-5 bg-white rounded-3xl border border-gray-100 shadow-[0_4px_24px_rgba(0,0,0,0.02)] transition-shadow hover:shadow-[0_8px_32px_rgba(0,0,0,0.04)]"
               >
                 {/* Image */}
-                <div className="w-24 h-24 rounded-[18px] overflow-hidden flex-shrink-0 bg-white/5">
+                <div className="w-28 h-28 sm:w-32 sm:h-32 rounded-[20px] overflow-hidden flex-shrink-0 bg-gray-50 border border-gray-100">
                   {item.image ? (
                     <img src={item.image} alt={item.name} className="w-full h-full object-cover" loading="lazy" />
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center text-3xl">🍽️</div>
+                    <div className="w-full h-full flex items-center justify-center text-4xl opacity-50">🍽️</div>
                   )}
                 </div>
 
                 {/* Content */}
-                <div className="flex-1 min-w-0">
+                <div className="flex-1 min-w-0 flex flex-col py-1">
+                  
                   {/* Badges */}
-                  <div className="flex flex-wrap gap-1 mb-1.5">
+                  <div className="flex flex-wrap gap-1.5 mb-2">
                     {item.isPopular && (
-                      <span className="inline-flex items-center gap-0.5 text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30">
-                        <Flame className="w-2.5 h-2.5" /> Popular
+                      <span className="inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-[0.15em] px-2 py-0.5 rounded-full bg-orange-50 text-orange-600 border border-orange-100">
+                        <Flame className="w-2.5 h-2.5" /> Chef's Pick
                       </span>
                     )}
                     {item.isNew && (
-                      <span className="inline-flex items-center gap-0.5 text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                        <Sparkles className="w-2.5 h-2.5" /> New
+                      <span className="inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-[0.15em] px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 border border-blue-100">
+                        <Sparkles className="w-2.5 h-2.5" /> Debut
                       </span>
                     )}
                   </div>
 
                   {/* Name */}
-                  <h3 className="font-bold text-white text-[15px] leading-snug">{item.name}</h3>
+                  <h3 className="text-lg text-slate-900 leading-snug" style={{ fontFamily: 'Georgia, serif' }}>{item.name}</h3>
                   {item.nameAr && (
-                    <p className="text-slate-500 text-xs mt-0.5" dir="rtl">{item.nameAr}</p>
+                    <p className="text-gray-500 text-xs mt-1" dir="rtl">{item.nameAr}</p>
                   )}
 
                   {/* Description */}
                   {item.description && (
-                    <p className="text-slate-500 text-xs mt-1 line-clamp-2 leading-relaxed">{item.description}</p>
+                    <p className="text-gray-500 text-[13px] mt-2 line-clamp-2 leading-relaxed font-light">{item.description}</p>
                   )}
 
+                  <div className="flex-1" />
+
                   {/* Meta + price */}
-                  <div className="mt-2.5 flex items-end justify-between gap-2 flex-wrap">
-                    <div className="flex items-center gap-2">
+                  <div className="mt-4 flex items-end justify-between gap-3 flex-wrap">
+                    <div className="flex items-center gap-3">
                       {item.preparationTime ? (
-                        <span className="flex items-center gap-1 text-[10px] text-slate-500">
-                          <Clock className="w-3 h-3" /> {item.preparationTime} min
+                        <span className="flex items-center gap-1 text-[11px] text-gray-400 font-medium tracking-wide">
+                          <Clock className="w-3.5 h-3.5" /> {item.preparationTime}m
                         </span>
                       ) : null}
                       {item.calories ? (
-                        <span className="text-[10px] text-slate-500">{item.calories} kcal</span>
+                        <span className="text-[11px] text-gray-400 font-medium tracking-wide">{item.calories} cal</span>
                       ) : null}
                     </div>
                     <div className="text-right">
-                      <div className="flex items-center gap-1 text-lg font-black" style={{ color: brandColor }}>
+                      <div className="flex items-center gap-1 text-[17px] font-medium tracking-tight text-slate-900">
                         {isSAR ? (
                           <>
-                            <SARBadge className="text-sm" />
+                            <SARBadge className="text-xs text-gray-400 mr-0.5 font-normal" />
                             <span>{item.price.toFixed(2)}</span>
                           </>
                         ) : (
@@ -350,7 +336,7 @@ export default function PublicMenuPage({ params }: { params: { slug: string } })
                         )}
                       </div>
                       {item.hasHalfPlate && item.halfPlatePrice && (
-                        <div className="text-[10px] text-amber-500/70 font-semibold mt-0.5">
+                        <div className="text-[11px] text-gray-500 mt-1">
                           Half {isSAR ? `ر.س ${item.halfPlatePrice.toFixed(2)}` : new TaxEngine(tenant.countryCode, tenant.vatRate).formatCurrency(item.halfPlatePrice)}
                         </div>
                       )}
@@ -364,17 +350,16 @@ export default function PublicMenuPage({ params }: { params: { slug: string } })
 
         {/* Footer */}
         {tenant.invoiceFooter && (
-          <div className="mt-10 text-center text-slate-600 text-xs">{tenant.invoiceFooter}</div>
+          <div className="mt-16 text-center text-gray-400 text-xs font-serif italic max-w-xs mx-auto">
+            "{tenant.invoiceFooter}"
+          </div>
         )}
-        <div className="mt-6 text-center">
-          <p className="text-slate-700 text-[10px] font-semibold uppercase tracking-[0.2em]">Powered by Buysial ERP</p>
+        <div className="mt-12 text-center pb-8 border-t border-gray-100 pt-8">
+          <p className="text-gray-400 text-[9px] font-bold uppercase tracking-[0.25em]">
+            Menu powered by <span className="text-emerald-600">Buysial</span>
+          </p>
         </div>
       </main>
-
-      <style>{`
-        .scrollbar-none::-webkit-scrollbar { display: none; }
-        .scrollbar-none { -ms-overflow-style: none; scrollbar-width: none; }
-      `}</style>
     </div>
   )
 }

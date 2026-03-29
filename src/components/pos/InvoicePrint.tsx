@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 import { Order, Tenant } from '@/lib/types'
 import { TaxEngine, generateZATCAQRData, COUNTRY_CONFIGS } from '@/lib/country-config'
@@ -48,7 +48,7 @@ export async function printCustomerInvoice(order: Order, tenant: Tenant) {
   const zatcaQrDataUrl = await buildInvoiceZatcaQrDataUrl(order, tenant)
 
   const orderTypeLabel = order.orderType === 'takeaway' ? 'ðŸ¥¡ Take Away' : 'ðŸ½ï¸ Dine In'
-  const countryFlag = tenant.countryCode === 'KSA' ? 'ðŸ‡¸ðŸ‡¦' : tenant.countryCode === 'UAE' ? 'ðŸ‡¦ðŸ‡ª' : 'ðŸ‡´ðŸ‡²'
+  const countryFlag = tenant.countryCode === 'KSA' ? '🇸🇦' : tenant.countryCode === 'UAE' ? '🇦🇪' : '🇴🇲'
   const accentColor = tenant.primaryColor || '#059669'
   const metaTone = tenant.secondaryColor || '#0f766e'
 
@@ -102,7 +102,7 @@ export async function printCustomerInvoice(order: Order, tenant: Tenant) {
       <div class="address">${tenant.address}</div>
       <div class="address">Tel: ${tenant.phone}</div>
       ${tenant.vatNumber ? `<div class="address">VAT No: ${tenant.vatNumber}</div>` : ''}
-      ${(tenant.countryCode !== 'KSA' || isTenantInvoiceQrEnabled(tenant.id, tenant.countryCode)) ? `<div><span class="compliance">${config.complianceLabel}</span></div>` : ''}
+      ${tenant.crNumber ? `<div class="address">CR No: ${tenant.crNumber}</div>` : ''}
     </div>
 
     <div class="content">
@@ -214,8 +214,8 @@ export function printKitchenTicket(order: Order, tenant: Tenant) {
     <div>${tenant.name}</div>
     <div class="order-badge">${order.invoiceNumber}</div>
     <div><span class="order-type">${orderTypeLabel}</span></div>
-    ${order.tableNumber ? `<div class="meta">TABLE: <b>${order.tableNumber}</b></div>` : ''}
-    ${order.customerName ? `<div class="meta">CUSTOMER: <b>${order.customerName}</b></div>` : ''}
+    ${order.tableNumber ? `<div class="meta">TABLE · الطاولة: <b>${order.tableNumber}</b></div>` : ''}
+    ${order.customerName ? `<div class="meta">CUSTOMER · العميل: <b>${order.customerName}</b></div>` : ''}
   </div>
 
   <div class="meta" style="text-align:center;">â° ${new Date(order.createdAt).toLocaleTimeString()}</div>
@@ -229,7 +229,7 @@ export function printKitchenTicket(order: Order, tenant: Tenant) {
   </div>
   `).join('')}
 
-  ${order.notes ? `<div class="divider"></div><div class="meta"><b>ORDER NOTES:</b> ${order.notes}</div>` : ''}
+  ${order.notes ? `<div class="divider"></div><div class="meta"><b>ORDER NOTES · ملاحظات:</b> ${order.notes}</div>` : ''}
 
   <div class="footer">
     <div>Printed: ${new Date().toLocaleTimeString()}</div>

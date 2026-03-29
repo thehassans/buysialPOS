@@ -32,6 +32,7 @@ export interface Tenant {
   currency: Currency
   vatRate: number
   vatNumber?: string
+  crNumber?: string
   address: string
   phone: string
   email: string

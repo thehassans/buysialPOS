@@ -94,6 +94,8 @@ export default function DashboardShell() {
         return <OrdersModule />
       case 'branches':
         return <BranchesModule />
+      case 'qr-menu':
+        return <QRMenuModule />
       default:
         if (role === 'super_admin') return <SuperAdminDashboard />
         return <AdminDashboard />

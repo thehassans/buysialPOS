@@ -35,9 +35,7 @@ export function getPrinterNameForChannel(channel: PrintChannel, tenant: Tenant) 
 }
 
 export function shouldAutoPrintKitchen(tenant?: Tenant) {
-  if (!tenant?.kitchenPrinterEnabled || !tenant.kitchenAutoPrint) return false
-  const role = getDevicePrintRole(tenant.id)
-  return role === 'kitchen' || role === 'admin'
+  return !!(tenant?.kitchenPrinterEnabled && tenant?.kitchenAutoPrint)
 }
 
 export function shouldAutoPrintCashier(tenant?: Tenant) {
