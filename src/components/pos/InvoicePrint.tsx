@@ -47,7 +47,7 @@ export async function printCustomerInvoice(order: Order, tenant: Tenant) {
   const config = COUNTRY_CONFIGS[tenant.countryCode]
   const zatcaQrDataUrl = await buildInvoiceZatcaQrDataUrl(order, tenant)
 
-  const orderTypeLabel = order.orderType === 'takeaway' ? 'ðŸ¥¡ Take Away' : 'ðŸ½ï¸ Dine In'
+  const orderTypeLabel = order.orderType === 'takeaway' ? 'Take Away' : 'Dine In'
   const countryFlag = tenant.countryCode === 'KSA' ? '🇸🇦' : tenant.countryCode === 'UAE' ? '🇦🇪' : '🇴🇲'
   const accentColor = tenant.primaryColor || '#059669'
   const metaTone = tenant.secondaryColor || '#0f766e'
@@ -111,9 +111,9 @@ export async function printCustomerInvoice(order: Order, tenant: Tenant) {
         <div class="meta-row"><span>Date · <span dir='rtl'>التاريخ</span></span><span>${new Date(order.createdAt).toLocaleString()}</span></div>
         ${order.tableNumber ? `<div class="meta-row"><span>Table · <span dir='rtl'>الطاولة</span></span><span><b>${order.tableNumber}</b></span></div>` : ''}
         <div class="meta-row"><span>Type · <span dir='rtl'>النوع</span></span><span><span class="order-type">${orderTypeLabel}</span></span></div>
-        ${order.customerName ? `<div class="customer-section"><b>Customer:</b> ${order.customerName}${order.customerPhone ? `<br>ðŸ“ž ${order.customerPhone}` : ''}</div>` : ''}
+        ${order.customerName ? `<div class="customer-section"><b>Customer:</b> ${order.customerName}${order.customerPhone ? `<br>📞 ${order.customerPhone}` : ''}</div>` : ''}
         ${order.notes ? `<div class="meta-row"><span>Notes · <span dir='rtl'>ملاحظات</span></span><span>${order.notes}</span></div>` : ''}
-        ${order.isEdited ? `<div style="margin-top:6px;padding:4px 8px;background:#fef3c7;border:1px solid #fcd34d;border-radius:6px;font-size:10px;color:#92400e;">âœï¸ EDITED Â· ${order.lastEditedByName || ''} Â· ${order.lastEditedAt ? new Date(order.lastEditedAt).toLocaleString() : ''}</div>` : ''}
+        ${order.isEdited ? `<div style="margin-top:6px;padding:4px 8px;background:#fef3c7;border:1px solid #fcd34d;border-radius:6px;font-size:10px;color:#92400e;">✎ EDITED · ${order.lastEditedByName || ''} · ${order.lastEditedAt ? new Date(order.lastEditedAt).toLocaleString() : ''}</div>` : ''}
       </div>
 
       <div class="divider"></div>
@@ -147,7 +147,7 @@ export async function printCustomerInvoice(order: Order, tenant: Tenant) {
           <span>${taxEngine.getVatLabel()}</span>
           <span>${taxEngine.formatCurrency(order.vatAmount)}</span>
         </div>
-        ${order.isPaid ? `<div class="total-row" style="color:#16a34a;"><span>Payment (${order.paymentMethod || 'cash'})</span><span>âœ“ PAID</span></div>` : ''}
+        ${order.isPaid ? `<div class="total-row" style="color:#16a34a;"><span>Payment (${order.paymentMethod || 'cash'})</span><span>✓ PAID</span></div>` : ''}
         <div class="total-row grand">
           <span>TOTAL · <span dir='rtl'>الإجمالي</span></span>
           <span>${taxEngine.formatCurrency(order.total)}</span>
@@ -166,8 +166,8 @@ export async function printCustomerInvoice(order: Order, tenant: Tenant) {
 
       ${order.isEdited && order.editHistory && order.editHistory.length > 0 ? `
       <div style="border-top:1px dashed #cbd5e1;margin-top:8px;padding-top:8px;">
-        <div style="font-size:10px;font-weight:700;color:#92400e;margin-bottom:4px;">âœï¸ Edit History</div>
-        ${order.editHistory.map(h => `<div style="font-size:9px;color:#78350f;margin-bottom:2px;">${new Date(h.editedAt).toLocaleString()} â€” ${h.editedByName}: ${h.changes}</div>`).join('')}
+        <div style="font-size:10px;font-weight:700;color:#92400e;margin-bottom:4px;">✎ Edit History</div>
+        ${order.editHistory.map(h => `<div style="font-size:9px;color:#78350f;margin-bottom:2px;">${new Date(h.editedAt).toLocaleString()} — ${h.editedByName}: ${h.changes}</div>`).join('')}
       </div>` : ''}
 
       <div class="footer">
@@ -184,7 +184,7 @@ export async function printCustomerInvoice(order: Order, tenant: Tenant) {
 }
 
 export function printKitchenTicket(order: Order, tenant: Tenant) {
-  const orderTypeLabel = order.orderType === 'takeaway' ? 'ðŸ¥¡ TAKE AWAY' : 'ðŸ½ï¸ DINE IN'
+  const orderTypeLabel = order.orderType === 'takeaway' ? 'TAKE AWAY' : 'DINE IN'
   const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
